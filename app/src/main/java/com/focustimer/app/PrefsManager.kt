@@ -53,6 +53,38 @@ class PrefsManager(context: Context) {
         get() = prefs.getString(KEY_CALL_NUMBER, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CALL_NUMBER, value).apply()
 
+    var email: String
+        get() = prefs.getString(KEY_EMAIL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_EMAIL, value).apply()
+
+    var weightKg: String
+        get() = prefs.getString(KEY_WEIGHT, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_WEIGHT, value).apply()
+
+    var heightCm: String
+        get() = prefs.getString(KEY_HEIGHT, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_HEIGHT, value).apply()
+
+    var age: String
+        get() = prefs.getString(KEY_AGE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_AGE, value).apply()
+
+    var maritalStatus: String
+        get() = prefs.getString(KEY_MARITAL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_MARITAL, value).apply()
+
+    var wakeTime: String
+        get() = prefs.getString(KEY_WAKE_TIME, "07:00") ?: "07:00"
+        set(value) = prefs.edit().putString(KEY_WAKE_TIME, value).apply()
+
+    var bedTime: String
+        get() = prefs.getString(KEY_BED_TIME, "23:00") ?: "23:00"
+        set(value) = prefs.edit().putString(KEY_BED_TIME, value).apply()
+
+    var isWorking: Boolean
+        get() = prefs.getBoolean(KEY_IS_WORKING, true)
+        set(value) = prefs.edit().putBoolean(KEY_IS_WORKING, value).apply()
+
     companion object {
         private const val KEY_NAME = "user_name"
         private const val KEY_PHOTO = "photo_uri"
@@ -66,5 +98,13 @@ class PrefsManager(context: Context) {
         private const val KEY_TG_CHAT = "telegram_chat_id"
         private const val KEY_CALL_ENABLED = "auto_call_enabled"
         private const val KEY_CALL_NUMBER = "auto_call_number"
+        private const val KEY_EMAIL = "email"
+        private const val KEY_WEIGHT = "weight_kg"
+        private const val KEY_HEIGHT = "height_cm"
+        private const val KEY_AGE = "age"
+        private const val KEY_MARITAL = "marital_status"
+        private const val KEY_WAKE_TIME = "wake_time"
+        private const val KEY_BED_TIME = "bed_time"
+        private const val KEY_IS_WORKING = "is_working"
     }
 }
