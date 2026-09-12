@@ -1,21 +1,27 @@
 package com.focustimer.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +34,11 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
     val minutes = state.secondsLeft / 60
     val seconds = state.secondsLeft % 60
 
+    // Being on this screen counts as noticing the current phase.
+    LaunchedEffect(Unit) {
+        viewModel.acknowledge()
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -35,10 +46,28 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        if (state.escalationActive) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFFCDD2))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Окно пропущено — вас уведомили", color = Color(0xFFB71C1C))
+                TextButton(onClick = { viewModel.acknowledge() }) {
+                    Text("Я тут")
+                }
+            }
+        }
+
         Text(
             text = if (state.phase == TimerPhase.WORK) "Работа" else "Отдых",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 16.dp)
         )
         Text(
             text = "%02d:%02d".format(minutes, seconds),
