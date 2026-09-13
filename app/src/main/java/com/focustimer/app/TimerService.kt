@@ -68,7 +68,7 @@ val MOTIVATIONAL_QUOTES = listOf(
     "Единственный, кто может остановить тебя, — это ты сам. — неизвестный автор"
 )
 
-val WORK_DONE_PHRASES = listOf(
+val WORK_DONE_PHRASES_RU = listOf(
     "Пора отдыхать! Выпейте чашку кофе или чая.",
     "Работа завершена. Самое время немного отдохнуть.",
     "Отличная работа! Теперь можно расслабиться и передохнуть.",
@@ -81,7 +81,7 @@ val WORK_DONE_PHRASES = listOf(
     "Время выдохнуть. Отдых начался — используйте его с пользой."
 )
 
-val REST_DONE_PHRASES = listOf(
+val REST_DONE_PHRASES_RU = listOf(
     "Пора работать! Желаю удачи — всё получится.",
     "Отдых завершён. Приступим к делу с новыми силами.",
     "Время снова сосредоточиться. У вас точно получится!",
@@ -92,6 +92,32 @@ val REST_DONE_PHRASES = listOf(
     "Время продуктивности! Начинаем работать.",
     "Перерыв закончен — покажите, на что способны!",
     "Снова в бой! Желаю продуктивной работы."
+)
+
+val WORK_DONE_PHRASES_EN = listOf(
+    "Time to rest! Grab a cup of coffee or tea.",
+    "Work session complete. Time for a well-deserved break.",
+    "Great job! Now relax and recharge for a bit.",
+    "Rest time has started. Stand up, stretch, get some fresh air.",
+    "Well done! Take a break — brew some tea and unwind.",
+    "Work block finished. Give your eyes and body a rest.",
+    "Time for a break. Take a walk or drink some water.",
+    "Work is done — enjoy your well-earned rest.",
+    "Great work! Time to relax a little.",
+    "Time to breathe out. Rest has begun — make the most of it."
+)
+
+val REST_DONE_PHRASES_EN = listOf(
+    "Time to work! Good luck — you've got this.",
+    "Break's over. Let's get back to it with fresh energy.",
+    "Time to focus again. You can definitely do this!",
+    "Break is over. Onward to new results!",
+    "Time to get back to work. You'll manage just fine!",
+    "Rested up — now let's get to it! Good luck.",
+    "Work time has started. Focus and take action.",
+    "Time to be productive! Let's start working.",
+    "Break's over — show what you're capable of!",
+    "Back into it! Wishing you a productive work session."
 )
 
 /**
@@ -116,6 +142,8 @@ class TimerService : Service() {
     private var sessionStartMillis: Long? = null
     private var announcedThisPhase = false
     private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var nextVoiceFemale = true
 
     override fun onCreate() {
         super.onCreate()
@@ -130,12 +158,7 @@ class TimerService : Service() {
         }
         createNotificationChannels()
         tts = TextToSpeech(applicationContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.setLanguage(Locale("ru"))
-                tts?.setPitch(1.1f)
-                tts?.setSpeechRate(1.02f)
-                pickCheerfulFemaleVoice()?.let { tts?.setVoice(it) }
-            }
+            ttsReady = status == TextToSpeech.SUCCESS
         }
     }
 
@@ -208,26 +231,64 @@ class TimerService : Service() {
         if (_uiState.value.secondsLeft <= lead) {
             announcedThisPhase = true
             val current = _uiState.value.phase
-            val text = if (current == TimerPhase.WORK) "Приближается время отдыха" else "Приближается время работы"
+            val english = prefs.voiceLanguage == "English"
+            val text = if (english) {
+                if (current == TimerPhase.WORK) "Rest time is approaching" else "Work time is approaching"
+            } else {
+                if (current == TimerPhase.WORK) "Приближается время отдыха" else "Приближается время работы"
+            }
             speak(text)
         }
     }
 
+    private fun currentVoiceLocale(): Locale =
+        if (prefs.voiceLanguage == "English") Locale.US else Locale("ru")
+
     private fun speak(text: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_timer_announce")
+        val engine = tts ?: return
+        if (!ttsReady) return
+
+        val locale = currentVoiceLocale()
+        engine.setLanguage(locale)
+
+        val female = nextVoiceFemale
+        nextVoiceFemale = !nextVoiceFemale
+
+        val voice = pickVoice(engine, locale, female)
+        if (voice != null) {
+            engine.setVoice(voice)
+        }
+        // Even when we can't reliably tell voices apart by gender, a pitch shift keeps the
+        // alternation audible and pushes the flat default voice a bit further from "robotic".
+        engine.setPitch(if (female) 1.12f else 0.86f)
+        engine.setSpeechRate(1.0f)
+
+        engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_timer_announce")
     }
 
     /**
-     * Best-effort pick of a pleasant female Russian voice. Voice availability/naming varies by
+     * Best-effort pick of a natural, gendered voice. Voice availability/naming/quality varies by
      * device and TTS engine, so this quietly falls back to the engine default when no match is
-     * found — it never fails the TTS setup.
+     * found — it never fails the TTS setup. Prefers the highest-quality (typically network/
+     * WaveNet-style) voices over the flatter on-device ones.
      */
-    private fun pickCheerfulFemaleVoice(): android.speech.tts.Voice? {
-        val voices = tts?.voices ?: return null
-        val ruVoices = voices.filter { it.locale.language == "ru" }
-        return ruVoices.firstOrNull { it.name.contains("female", ignoreCase = true) }
-            ?: ruVoices.firstOrNull { Regex("x-ru[fe]-local", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }
-            ?: ruVoices.firstOrNull { !it.name.contains("male", ignoreCase = true) }
+    private fun pickVoice(engine: TextToSpeech, locale: Locale, female: Boolean): android.speech.tts.Voice? {
+        val voices = engine.voices ?: return null
+        val candidates = voices
+            .filter { it.locale.language == locale.language }
+            .sortedByDescending { it.quality }
+        if (candidates.isEmpty()) return null
+
+        fun matches(voice: android.speech.tts.Voice): Boolean {
+            val name = voice.name.lowercase()
+            return if (female) {
+                name.contains("female") || Regex("x-...-f(-|$)").containsMatchIn(name)
+            } else {
+                (name.contains("male") && !name.contains("female")) || Regex("x-...-[dm](-|$)").containsMatchIn(name)
+            }
+        }
+
+        return candidates.firstOrNull { matches(it) } ?: candidates.firstOrNull()
     }
 
     fun pause() {
@@ -282,7 +343,12 @@ class TimerService : Service() {
         start()
         repeatAlert(times = if (finishedPhase == TimerPhase.WORK) 3 else 1)
         if (prefs.voiceAnnounceEnabled) {
-            val phrase = if (finishedPhase == TimerPhase.WORK) WORK_DONE_PHRASES.random() else REST_DONE_PHRASES.random()
+            val english = prefs.voiceLanguage == "English"
+            val phrase = if (finishedPhase == TimerPhase.WORK) {
+                (if (english) WORK_DONE_PHRASES_EN else WORK_DONE_PHRASES_RU).random()
+            } else {
+                (if (english) REST_DONE_PHRASES_EN else REST_DONE_PHRASES_RU).random()
+            }
             speak(phrase)
         }
     }

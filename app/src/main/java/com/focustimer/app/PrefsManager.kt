@@ -80,6 +80,10 @@ class PrefsManager(context: Context) {
     fun voiceAnnounceLeadSeconds(): Int =
         if (voiceAnnounceUnit == "Минуты") voiceAnnounceLeadValue * 60 else voiceAnnounceLeadValue
 
+    var voiceLanguage: String
+        get() = prefs.getString(KEY_VOICE_LANGUAGE, "Русский") ?: "Русский"
+        set(value) = prefs.edit().putString(KEY_VOICE_LANGUAGE, value).apply()
+
     var photoUri: String?
         get() = prefs.getString(KEY_PHOTO, null)
         set(value) = prefs.edit().putString(KEY_PHOTO, value).apply()
@@ -454,6 +458,7 @@ class PrefsManager(context: Context) {
         private const val KEY_VOICE_ANNOUNCE_ENABLED = "voice_announce_enabled"
         private const val KEY_VOICE_ANNOUNCE_VALUE = "voice_announce_value"
         private const val KEY_VOICE_ANNOUNCE_UNIT = "voice_announce_unit"
+        private const val KEY_VOICE_LANGUAGE = "voice_language"
         private const val KEY_HISTORY = "session_history"
         private const val KEY_CATEGORIES = "categories"
         private const val KEY_PASSWORD_HASH = "account_password_hash"

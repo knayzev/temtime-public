@@ -95,6 +95,7 @@ private fun GeneralSettingsTab(onLogout: () -> Unit) {
     var voiceAnnounceEnabled by remember { mutableStateOf(prefs.voiceAnnounceEnabled) }
     var voiceAnnounceValue by remember { mutableStateOf(prefs.voiceAnnounceLeadValue.toString()) }
     var voiceAnnounceUnit by remember { mutableStateOf(prefs.voiceAnnounceUnit) }
+    var voiceLanguage by remember { mutableStateOf(prefs.voiceLanguage) }
 
     var importMessage by remember { mutableStateOf<String?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
@@ -262,6 +263,15 @@ private fun GeneralSettingsTab(onLogout: () -> Unit) {
                     modifier = Modifier.weight(1f)
                 )
             }
+            DropdownField(
+                label = "Язык озвучки",
+                selected = voiceLanguage,
+                options = listOf("Русский", "English"),
+                onSelected = {
+                    voiceLanguage = it
+                    prefs.voiceLanguage = it
+                }
+            )
         }
 
         Divider(modifier = Modifier.padding(vertical = 16.dp))
