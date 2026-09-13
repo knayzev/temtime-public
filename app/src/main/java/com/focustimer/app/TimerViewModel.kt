@@ -66,6 +66,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setComment(text: String) = service?.setComment(text)
 
+    fun setCategory(category: String) = service?.setCategory(category)
+
     override fun onCleared() {
         if (bound) {
             getApplication<Application>().unbindService(connection)

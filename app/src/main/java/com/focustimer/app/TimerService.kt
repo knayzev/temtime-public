@@ -43,7 +43,8 @@ data class TimerUiState(
     val workMinutes: Int = 25,
     val restMinutes: Int = 5,
     val escalationActive: Boolean = false,
-    val currentComment: String = ""
+    val currentComment: String = "",
+    val currentCategory: String = ""
 )
 
 /**
@@ -74,7 +75,8 @@ class TimerService : Service() {
             it.copy(
                 workMinutes = prefs.workMinutes,
                 restMinutes = prefs.restMinutes,
-                secondsLeft = prefs.workMinutes * 60
+                secondsLeft = prefs.workMinutes * 60,
+                currentCategory = prefs.categories.firstOrNull() ?: ""
             )
         }
         createNotificationChannels()
@@ -113,6 +115,10 @@ class TimerService : Service() {
 
     fun setComment(text: String) {
         _uiState.update { it.copy(currentComment = text) }
+    }
+
+    fun setCategory(category: String) {
+        _uiState.update { it.copy(currentCategory = category) }
     }
 
     fun start() {
@@ -187,7 +193,8 @@ class TimerService : Service() {
                 startTimeMillis = start,
                 durationSeconds = elapsedSeconds,
                 interrupted = interrupted,
-                comment = state.currentComment
+                comment = state.currentComment,
+                category = state.currentCategory
             )
         )
         sessionStartMillis = null

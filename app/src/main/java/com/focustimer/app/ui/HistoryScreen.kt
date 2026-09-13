@@ -83,7 +83,16 @@ private fun HistoryRow(entry: SessionRecord, onCommentChange: (String) -> Unit) 
             )
             Text(dateText, style = MaterialTheme.typography.bodySmall)
         }
-        Text("%d:%02d".format(minutes, seconds), style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("%d:%02d".format(minutes, seconds), style = MaterialTheme.typography.bodyMedium)
+            if (entry.category.isNotBlank()) {
+                Text(
+                    "• ${entry.category}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         OutlinedTextField(
             value = comment,

@@ -295,7 +295,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DropdownField(
+fun DropdownField(
     label: String,
     selected: String,
     options: List<String>,

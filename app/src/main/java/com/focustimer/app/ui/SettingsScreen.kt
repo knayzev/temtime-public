@@ -7,6 +7,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,11 +19,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +63,35 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
 
     var stepsEnabled by remember { mutableStateOf(prefs.stepsEnabled) }
     var stepCount by remember { mutableStateOf<Int?>(null) }
+
+    var categories by remember { mutableStateOf(prefs.categories) }
+    var newCategory by remember { mutableStateOf("") }
+
+    var importMessage by remember { mutableStateOf<String?>(null) }
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(prefs.exportAllData().toByteArray())
+                }
+                importMessage = "Данные экспортированы"
+            } catch (_: Exception) {
+                importMessage = "Не удалось сохранить файл"
+            }
+        }
+    }
+
+    val importPickLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            pendingImportUri = uri
+        }
+    }
 
     val callPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -210,6 +248,110 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier.padding(bottom = 12.dp)
             )
         }
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+        Text("Категории активности", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Выбираются на экране таймера и видны в истории",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        )
+        categories.forEach { category ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(category)
+                IconButton(onClick = {
+                    categories = categories - category
+                    prefs.categories = categories
+                }) {
+                    Icon(Icons.Default.Close, contentDescription = "Удалить $category")
+                }
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = newCategory,
+                onValueChange = { newCategory = it },
+                label = { Text("Новая категория") },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = {
+                    val trimmed = newCategory.trim()
+                    if (trimmed.isNotEmpty() && trimmed !in categories) {
+                        categories = categories + trimmed
+                        prefs.categories = categories
+                    }
+                    newCategory = ""
+                },
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                Text("Добавить")
+            }
+        }
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+        Text("Экспорт и бэкап", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Все данные хранятся только на этом устройстве — сохраните файл, чтобы не потерять историю",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { exportLauncher.launch("focus-timer-backup.json") }) {
+                Text("Экспортировать")
+            }
+            OutlinedButton(onClick = { importPickLauncher.launch("application/json") }) {
+                Text("Импортировать")
+            }
+        }
+        importMessage?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+
+    if (pendingImportUri != null) {
+        AlertDialog(
+            onDismissRequest = { pendingImportUri = null },
+            title = { Text("Импортировать данные?") },
+            text = { Text("Текущий профиль, настройки и история будут заменены содержимым файла.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val uri = pendingImportUri
+                    pendingImportUri = null
+                    if (uri != null) {
+                        val text = try {
+                            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        } catch (_: Exception) {
+                            null
+                        }
+                        val success = text != null && prefs.importAllData(text)
+                        importMessage = if (success) {
+                            categories = prefs.categories
+                            "Данные импортированы"
+                        } else {
+                            "Не удалось прочитать файл"
+                        }
+                    }
+                }) { Text("Импортировать") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImportUri = null }) { Text("Отмена") }
+            }
+        )
     }
 }
 

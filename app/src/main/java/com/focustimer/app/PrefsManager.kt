@@ -10,8 +10,11 @@ data class SessionRecord(
     val startTimeMillis: Long,
     val durationSeconds: Int,
     val interrupted: Boolean,
-    val comment: String
+    val comment: String,
+    val category: String = ""
 )
+
+val DEFAULT_CATEGORIES = listOf("Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое")
 
 class PrefsManager(context: Context) {
     private val prefs = context.getSharedPreferences("focus_timer_prefs", Context.MODE_PRIVATE)
@@ -112,6 +115,22 @@ class PrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_IS_WORKING, true)
         set(value) = prefs.edit().putBoolean(KEY_IS_WORKING, value).apply()
 
+    var categories: List<String>
+        get() {
+            val raw = prefs.getString(KEY_CATEGORIES, null) ?: return DEFAULT_CATEGORIES
+            return try {
+                val array = JSONArray(raw)
+                (0 until array.length()).map { array.getString(it) }
+            } catch (_: Exception) {
+                DEFAULT_CATEGORIES
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { array.put(it) }
+            prefs.edit().putString(KEY_CATEGORIES, array.toString()).apply()
+        }
+
     fun getHistory(): List<SessionRecord> {
         val raw = prefs.getString(KEY_HISTORY, null) ?: return emptyList()
         return try {
@@ -124,7 +143,8 @@ class PrefsManager(context: Context) {
                     startTimeMillis = obj.getLong("startTimeMillis"),
                     durationSeconds = obj.getInt("durationSeconds"),
                     interrupted = obj.getBoolean("interrupted"),
-                    comment = obj.optString("comment", "")
+                    comment = obj.optString("comment", ""),
+                    category = obj.optString("category", "")
                 )
             }
         } catch (_: Exception) {
@@ -144,19 +164,99 @@ class PrefsManager(context: Context) {
 
     private fun saveHistory(entries: List<SessionRecord>) {
         val array = JSONArray()
-        entries.forEach { entry ->
-            array.put(
-                JSONObject().apply {
-                    put("id", entry.id)
-                    put("phase", entry.phase)
-                    put("startTimeMillis", entry.startTimeMillis)
-                    put("durationSeconds", entry.durationSeconds)
-                    put("interrupted", entry.interrupted)
-                    put("comment", entry.comment)
-                }
-            )
-        }
+        entries.forEach { entry -> array.put(sessionToJson(entry)) }
         prefs.edit().putString(KEY_HISTORY, array.toString()).apply()
+    }
+
+    private fun sessionToJson(entry: SessionRecord): JSONObject = JSONObject().apply {
+        put("id", entry.id)
+        put("phase", entry.phase)
+        put("startTimeMillis", entry.startTimeMillis)
+        put("durationSeconds", entry.durationSeconds)
+        put("interrupted", entry.interrupted)
+        put("comment", entry.comment)
+        put("category", entry.category)
+    }
+
+    fun exportAllData(): String {
+        val root = JSONObject()
+        root.put("exportVersion", 1)
+        val profile = JSONObject().apply {
+            put("userName", userName)
+            put("lastName", lastName)
+            put("email", email)
+            put("dataConsentGiven", dataConsentGiven)
+            put("weightKg", weightKg)
+            put("heightCm", heightCm)
+            put("age", age)
+            put("gender", gender)
+            put("maritalStatus", maritalStatus)
+            put("wakeTime", wakeTime)
+            put("bedTime", bedTime)
+            put("isWorking", isWorking)
+        }
+        root.put("profile", profile)
+        val settings = JSONObject().apply {
+            put("workMinutes", workMinutes)
+            put("restMinutes", restMinutes)
+            put("soundEnabled", soundEnabled)
+            put("vibrationEnabled", vibrationEnabled)
+            put("keepScreenOn", keepScreenOn)
+            put("categories", JSONArray(categories))
+        }
+        root.put("settings", settings)
+        val historyArray = JSONArray()
+        getHistory().forEach { historyArray.put(sessionToJson(it)) }
+        root.put("history", historyArray)
+        return root.toString(2)
+    }
+
+    fun importAllData(json: String): Boolean {
+        return try {
+            val root = JSONObject(json)
+            root.optJSONObject("profile")?.let { profile ->
+                userName = profile.optString("userName", userName)
+                lastName = profile.optString("lastName", lastName)
+                email = profile.optString("email", email)
+                dataConsentGiven = profile.optBoolean("dataConsentGiven", dataConsentGiven)
+                weightKg = profile.optString("weightKg", weightKg)
+                heightCm = profile.optString("heightCm", heightCm)
+                age = profile.optString("age", age)
+                gender = profile.optString("gender", gender)
+                maritalStatus = profile.optString("maritalStatus", maritalStatus)
+                wakeTime = profile.optString("wakeTime", wakeTime)
+                bedTime = profile.optString("bedTime", bedTime)
+                isWorking = profile.optBoolean("isWorking", isWorking)
+            }
+            root.optJSONObject("settings")?.let { settingsObj ->
+                workMinutes = settingsObj.optInt("workMinutes", workMinutes)
+                restMinutes = settingsObj.optInt("restMinutes", restMinutes)
+                soundEnabled = settingsObj.optBoolean("soundEnabled", soundEnabled)
+                vibrationEnabled = settingsObj.optBoolean("vibrationEnabled", vibrationEnabled)
+                keepScreenOn = settingsObj.optBoolean("keepScreenOn", keepScreenOn)
+                settingsObj.optJSONArray("categories")?.let { arr ->
+                    categories = (0 until arr.length()).map { arr.getString(it) }
+                }
+            }
+            root.optJSONArray("history")?.let { arr ->
+                val imported = (0 until arr.length()).map { i ->
+                    val obj = arr.getJSONObject(i)
+                    SessionRecord(
+                        id = obj.getLong("id"),
+                        phase = obj.getString("phase"),
+                        startTimeMillis = obj.getLong("startTimeMillis"),
+                        durationSeconds = obj.getInt("durationSeconds"),
+                        interrupted = obj.getBoolean("interrupted"),
+                        comment = obj.optString("comment", ""),
+                        category = obj.optString("category", "")
+                    )
+                }
+                saveHistory(imported.sortedByDescending { it.startTimeMillis })
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     companion object {
@@ -186,5 +286,6 @@ class PrefsManager(context: Context) {
         private const val KEY_DATA_CONSENT = "data_consent_given"
         private const val KEY_STEPS_ENABLED = "steps_enabled"
         private const val KEY_HISTORY = "session_history"
+        private const val KEY_CATEGORIES = "categories"
     }
 }

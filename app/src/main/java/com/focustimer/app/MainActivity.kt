@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -38,6 +39,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.focustimer.app.ui.HistoryScreen
 import com.focustimer.app.ui.ProfileScreen
 import com.focustimer.app.ui.SettingsScreen
+import com.focustimer.app.ui.StatsScreen
 import com.focustimer.app.ui.TimerScreen
 import com.focustimer.app.ui.theme.FocusTimerTheme
 
@@ -57,7 +59,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot(timerViewModel: TimerViewModel) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Таймер", "История", "Настройки", "Профиль")
+    val tabs = listOf("Таймер", "История", "Статистика", "Настройки", "Профиль")
 
     val context = LocalContext.current
     val view = LocalView.current
@@ -114,14 +116,20 @@ fun AppRoot(timerViewModel: TimerViewModel) {
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = tabs[2]) },
+                    icon = { Icon(Icons.Default.BarChart, contentDescription = tabs[2]) },
                     label = { Text(tabs[2]) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
-                    icon = { Icon(Icons.Default.Person, contentDescription = tabs[3]) },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = tabs[3]) },
                     label = { Text(tabs[3]) }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    icon = { Icon(Icons.Default.Person, contentDescription = tabs[4]) },
+                    label = { Text(tabs[4]) }
                 )
             }
         }
@@ -129,8 +137,9 @@ fun AppRoot(timerViewModel: TimerViewModel) {
         when (selectedTab) {
             0 -> TimerScreen(timerViewModel, modifier = Modifier.padding(padding))
             1 -> HistoryScreen(modifier = Modifier.padding(padding))
-            2 -> SettingsScreen(modifier = Modifier.padding(padding))
-            3 -> ProfileScreen(modifier = Modifier.padding(padding))
+            2 -> StatsScreen(modifier = Modifier.padding(padding))
+            3 -> SettingsScreen(modifier = Modifier.padding(padding))
+            4 -> ProfileScreen(modifier = Modifier.padding(padding))
         }
     }
 }

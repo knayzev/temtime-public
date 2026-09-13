@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.focustimer.app.PrefsManager
 import com.focustimer.app.TimerPhase
 import com.focustimer.app.TimerViewModel
 
@@ -37,6 +39,8 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
     val state by viewModel.uiState.collectAsState()
     val minutes = state.secondsLeft / 60
     val seconds = state.secondsLeft % 60
+    val context = LocalContext.current
+    val categories = remember { PrefsManager(context).categories }
 
     // Being on this screen counts as noticing the current phase.
     LaunchedEffect(Unit) {
@@ -73,6 +77,16 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(top = 16.dp)
         )
+
+        if (categories.isNotEmpty()) {
+            DropdownField(
+                label = "Чем занимаетесь",
+                selected = state.currentCategory.ifBlank { categories.first() },
+                options = categories,
+                onSelected = { viewModel.setCategory(it) },
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        }
         Text(
             text = "%02d:%02d".format(minutes, seconds),
             fontSize = 64.sp,
