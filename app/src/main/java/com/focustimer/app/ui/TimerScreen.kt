@@ -172,20 +172,66 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
             }
         }
 
-        var showComment by remember { mutableStateOf(false) }
-        TextButton(
-            onClick = { showComment = !showComment },
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text(if (showComment) "Скрыть комментарий" else "Добавить комментарий")
-        }
-        if (showComment) {
+        var showCommentEditor by remember { mutableStateOf(false) }
+        var draftComment by remember { mutableStateOf(state.currentComment) }
+
+        if (!showCommentEditor) {
+            if (state.currentComment.isBlank()) {
+                TextButton(
+                    onClick = {
+                        draftComment = state.currentComment
+                        showCommentEditor = true
+                    },
+                    modifier = Modifier.padding(top = 16.dp)
+                ) {
+                    Text("Добавить комментарий")
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        state.currentComment,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    IconButton(onClick = {
+                        draftComment = state.currentComment
+                        showCommentEditor = true
+                    }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Изменить комментарий")
+                    }
+                }
+            }
+        } else {
             OutlinedTextField(
-                value = state.currentComment,
-                onValueChange = { viewModel.setComment(it) },
+                value = draftComment,
+                onValueChange = { draftComment = it },
                 label = { Text("Комментарий к сессии") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
             )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { showCommentEditor = false }) {
+                    Text("Отмена")
+                }
+                Button(onClick = {
+                    viewModel.setComment(draftComment)
+                    showCommentEditor = false
+                }) {
+                    Text("Сохранить")
+                }
+            }
         }
 
         if (!state.isRunning) {
