@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -62,8 +63,7 @@ private val MARITAL_OPTIONS = listOf(
 
 private val GENDER_OPTIONS = listOf(
     "Мужской",
-    "Женский",
-    "Не указывать"
+    "Женский"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -290,6 +290,20 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                 }
             )
         }
+
+        val advice = remember(weightKg, heightCm, age, gender) {
+            buildAdvice(weightKg, heightCm, age, gender)
+        }
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+        Text("Персональные рекомендации", style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(top = 8.dp)) {
+            advice.forEach { tip ->
+                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(tip)
+                }
+            }
+        }
     }
 }
 
@@ -338,7 +352,7 @@ fun DropdownField(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimePickerRow(label: String, timeText: String, onTimeChange: (String) -> Unit) {
+fun TimePickerRow(label: String, timeText: String, onTimeChange: (String) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
 
     Row(
@@ -376,7 +390,7 @@ private fun TimePickerRow(label: String, timeText: String, onTimeChange: (String
     }
 }
 
-private fun parseTime(text: String): Pair<Int, Int> {
+fun parseTime(text: String): Pair<Int, Int> {
     val parts = text.split(":")
     val hour = parts.getOrNull(0)?.toIntOrNull() ?: 7
     val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0

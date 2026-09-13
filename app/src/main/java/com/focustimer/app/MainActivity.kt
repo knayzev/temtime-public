@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.padding
@@ -36,7 +37,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.focustimer.app.ui.AuthScreen
 import com.focustimer.app.ui.HistoryScreen
+import com.focustimer.app.ui.OnboardingScreen
 import com.focustimer.app.ui.ProfileScreen
 import com.focustimer.app.ui.SettingsScreen
 import com.focustimer.app.ui.StatsScreen
@@ -50,14 +53,49 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             FocusTimerTheme {
-                AppRoot(timerViewModel)
+                RootNavigator(timerViewModel)
             }
         }
     }
 }
 
+private enum class RootScreen { AUTH, ONBOARDING, MAIN }
+
 @Composable
-fun AppRoot(timerViewModel: TimerViewModel) {
+fun RootNavigator(timerViewModel: TimerViewModel) {
+    val context = LocalContext.current
+    val prefs = remember { PrefsManager(context) }
+
+    var screen by remember {
+        mutableStateOf(
+            when {
+                !prefs.isRegistered || !prefs.isLoggedIn -> RootScreen.AUTH
+                !prefs.isOnboarded -> RootScreen.ONBOARDING
+                else -> RootScreen.MAIN
+            }
+        )
+    }
+
+    when (screen) {
+        RootScreen.AUTH -> AuthScreen(
+            startInLoginMode = prefs.isRegistered,
+            onAuthenticated = {
+                screen = if (prefs.isOnboarded) RootScreen.MAIN else RootScreen.ONBOARDING
+            }
+        )
+        RootScreen.ONBOARDING -> OnboardingScreen(onComplete = { screen = RootScreen.MAIN })
+        RootScreen.MAIN -> AppRoot(
+            timerViewModel = timerViewModel,
+            onLogout = {
+                prefs.isLoggedIn = false
+                screen = RootScreen.AUTH
+            }
+        )
+    }
+}
+
+@Composable
+fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Таймер", "История", "Статистика", "Настройки", "Профиль")
 
@@ -138,7 +176,7 @@ fun AppRoot(timerViewModel: TimerViewModel) {
             0 -> TimerScreen(timerViewModel, modifier = Modifier.padding(padding))
             1 -> HistoryScreen(modifier = Modifier.padding(padding))
             2 -> StatsScreen(modifier = Modifier.padding(padding))
-            3 -> SettingsScreen(modifier = Modifier.padding(padding))
+            3 -> SettingsScreen(modifier = Modifier.padding(padding), onLogout = onLogout)
             4 -> ProfileScreen(modifier = Modifier.padding(padding))
         }
     }

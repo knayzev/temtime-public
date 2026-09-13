@@ -46,7 +46,7 @@ import androidx.core.content.ContextCompat
 import com.focustimer.app.PrefsManager
 
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
+fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
 
@@ -320,6 +320,14 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp)
             )
+        }
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+        OutlinedButton(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Выйти из аккаунта")
         }
     }
 

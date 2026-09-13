@@ -1,6 +1,7 @@
 package com.focustimer.app
 
 import android.content.Context
+import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -14,7 +15,27 @@ data class SessionRecord(
     val category: String = ""
 )
 
+data class TimerPreset(
+    val id: String,
+    val label: String,
+    val workMinutes: Int,
+    val restMinutes: Int,
+    val comment: String = ""
+)
+
 val DEFAULT_CATEGORIES = listOf("Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое")
+
+val DEFAULT_PRESETS = listOf(
+    TimerPreset("preset_work25", "Работа 25 мин", 25, 5),
+    TimerPreset("preset_deep50", "Глубокая работа 50 мин", 50, 10),
+    TimerPreset("preset_study45", "Учёба 45 мин", 45, 15),
+    TimerPreset("preset_sprint15", "Спринт 15 мин", 15, 5)
+)
+
+fun sha256(text: String): String {
+    val bytes = MessageDigest.getInstance("SHA-256").digest(text.toByteArray())
+    return bytes.joinToString("") { "%02x".format(it) }
+}
 
 class PrefsManager(context: Context) {
     private val prefs = context.getSharedPreferences("focus_timer_prefs", Context.MODE_PRIVATE)
@@ -115,6 +136,85 @@ class PrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_IS_WORKING, true)
         set(value) = prefs.edit().putBoolean(KEY_IS_WORKING, value).apply()
 
+    var accountPasswordHash: String
+        get() = prefs.getString(KEY_PASSWORD_HASH, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_PASSWORD_HASH, value).apply()
+
+    var isRegistered: Boolean
+        get() = prefs.getBoolean(KEY_IS_REGISTERED, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_REGISTERED, value).apply()
+
+    var isLoggedIn: Boolean
+        get() = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_LOGGED_IN, value).apply()
+
+    var isOnboarded: Boolean
+        get() = prefs.getBoolean(KEY_IS_ONBOARDED, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_ONBOARDED, value).apply()
+
+    var breakfastTime: String
+        get() = prefs.getString(KEY_BREAKFAST_TIME, "08:00") ?: "08:00"
+        set(value) = prefs.edit().putString(KEY_BREAKFAST_TIME, value).apply()
+
+    var lunchTime: String
+        get() = prefs.getString(KEY_LUNCH_TIME, "13:00") ?: "13:00"
+        set(value) = prefs.edit().putString(KEY_LUNCH_TIME, value).apply()
+
+    var dinnerTime: String
+        get() = prefs.getString(KEY_DINNER_TIME, "19:00") ?: "19:00"
+        set(value) = prefs.edit().putString(KEY_DINNER_TIME, value).apply()
+
+    var workHoursPerDay: Int
+        get() = prefs.getInt(KEY_WORK_HOURS_PER_DAY, 8)
+        set(value) = prefs.edit().putInt(KEY_WORK_HOURS_PER_DAY, value).apply()
+
+    var mealsPerDay: Int
+        get() = prefs.getInt(KEY_MEALS_PER_DAY, 3)
+        set(value) = prefs.edit().putInt(KEY_MEALS_PER_DAY, value).apply()
+
+    var waterUnit: String
+        get() = prefs.getString(KEY_WATER_UNIT, "Бутылки") ?: "Бутылки"
+        set(value) = prefs.edit().putString(KEY_WATER_UNIT, value).apply()
+
+    var waterCount: Int
+        get() = prefs.getInt(KEY_WATER_COUNT, 4)
+        set(value) = prefs.edit().putInt(KEY_WATER_COUNT, value).apply()
+
+    var presets: List<TimerPreset>
+        get() {
+            val raw = prefs.getString(KEY_PRESETS, null) ?: return DEFAULT_PRESETS
+            return try {
+                val array = JSONArray(raw)
+                (0 until array.length()).map { i ->
+                    val obj = array.getJSONObject(i)
+                    TimerPreset(
+                        id = obj.getString("id"),
+                        label = obj.getString("label"),
+                        workMinutes = obj.getInt("workMinutes"),
+                        restMinutes = obj.getInt("restMinutes"),
+                        comment = obj.optString("comment", "")
+                    )
+                }
+            } catch (_: Exception) {
+                DEFAULT_PRESETS
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { preset ->
+                array.put(
+                    JSONObject().apply {
+                        put("id", preset.id)
+                        put("label", preset.label)
+                        put("workMinutes", preset.workMinutes)
+                        put("restMinutes", preset.restMinutes)
+                        put("comment", preset.comment)
+                    }
+                )
+            }
+            prefs.edit().putString(KEY_PRESETS, array.toString()).apply()
+        }
+
     var categories: List<String>
         get() {
             val raw = prefs.getString(KEY_CATEGORIES, null) ?: return DEFAULT_CATEGORIES
@@ -194,6 +294,13 @@ class PrefsManager(context: Context) {
             put("wakeTime", wakeTime)
             put("bedTime", bedTime)
             put("isWorking", isWorking)
+            put("breakfastTime", breakfastTime)
+            put("lunchTime", lunchTime)
+            put("dinnerTime", dinnerTime)
+            put("workHoursPerDay", workHoursPerDay)
+            put("mealsPerDay", mealsPerDay)
+            put("waterUnit", waterUnit)
+            put("waterCount", waterCount)
         }
         root.put("profile", profile)
         val settings = JSONObject().apply {
@@ -227,6 +334,13 @@ class PrefsManager(context: Context) {
                 wakeTime = profile.optString("wakeTime", wakeTime)
                 bedTime = profile.optString("bedTime", bedTime)
                 isWorking = profile.optBoolean("isWorking", isWorking)
+                breakfastTime = profile.optString("breakfastTime", breakfastTime)
+                lunchTime = profile.optString("lunchTime", lunchTime)
+                dinnerTime = profile.optString("dinnerTime", dinnerTime)
+                workHoursPerDay = profile.optInt("workHoursPerDay", workHoursPerDay)
+                mealsPerDay = profile.optInt("mealsPerDay", mealsPerDay)
+                waterUnit = profile.optString("waterUnit", waterUnit)
+                waterCount = profile.optInt("waterCount", waterCount)
             }
             root.optJSONObject("settings")?.let { settingsObj ->
                 workMinutes = settingsObj.optInt("workMinutes", workMinutes)
@@ -287,5 +401,17 @@ class PrefsManager(context: Context) {
         private const val KEY_STEPS_ENABLED = "steps_enabled"
         private const val KEY_HISTORY = "session_history"
         private const val KEY_CATEGORIES = "categories"
+        private const val KEY_PASSWORD_HASH = "account_password_hash"
+        private const val KEY_IS_REGISTERED = "is_registered"
+        private const val KEY_IS_LOGGED_IN = "is_logged_in"
+        private const val KEY_IS_ONBOARDED = "is_onboarded"
+        private const val KEY_BREAKFAST_TIME = "breakfast_time"
+        private const val KEY_LUNCH_TIME = "lunch_time"
+        private const val KEY_DINNER_TIME = "dinner_time"
+        private const val KEY_WORK_HOURS_PER_DAY = "work_hours_per_day"
+        private const val KEY_MEALS_PER_DAY = "meals_per_day"
+        private const val KEY_WATER_UNIT = "water_unit"
+        private const val KEY_WATER_COUNT = "water_count"
+        private const val KEY_PRESETS = "timer_presets"
     }
 }
