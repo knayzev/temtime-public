@@ -104,7 +104,7 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
 
         if (liveSteps != null) {
             Text(
-                "Шаги: $liveSteps",
+                "Шаги сегодня: $liveSteps",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

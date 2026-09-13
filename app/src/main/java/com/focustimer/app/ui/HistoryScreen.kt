@@ -94,6 +94,16 @@ private fun HistoryRow(entry: SessionRecord, onCommentChange: (String) -> Unit) 
             }
         }
 
+        if (entry.quote.isNotBlank()) {
+            Text(
+                entry.quote,
+                style = MaterialTheme.typography.bodySmall,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
         OutlinedTextField(
             value = comment,
             onValueChange = {

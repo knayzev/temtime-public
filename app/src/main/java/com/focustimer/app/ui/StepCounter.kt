@@ -12,14 +12,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.focustimer.app.PrefsManager
+import java.util.Calendar
+
+private fun todayDateString(): String {
+    val cal = Calendar.getInstance()
+    return "%04d-%02d-%02d".format(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
+}
 
 /**
- * Live step count from the device's step counter sensor (steps since last reboot),
- * or null while unavailable/disabled.
+ * Live step count for today, derived from the device's cumulative-since-boot step counter
+ * sensor by tracking a daily baseline in prefs. Returns null while unavailable/disabled.
  */
 @Composable
 fun rememberLiveStepCount(enabled: Boolean): Int? {
     val context = LocalContext.current
+    val prefs = remember { PrefsManager(context) }
     var stepCount by remember { mutableStateOf<Int?>(null) }
 
     DisposableEffect(enabled) {
@@ -30,7 +38,13 @@ fun rememberLiveStepCount(enabled: Boolean): Int? {
             if (sensor != null) {
                 listener = object : SensorEventListener {
                     override fun onSensorChanged(event: SensorEvent) {
-                        stepCount = event.values[0].toInt()
+                        val raw = event.values[0].toInt()
+                        val today = todayDateString()
+                        if (prefs.stepsBaselineDate != today || raw < prefs.stepsBaselineCount) {
+                            prefs.stepsBaselineDate = today
+                            prefs.stepsBaselineCount = raw
+                        }
+                        stepCount = (raw - prefs.stepsBaselineCount).coerceAtLeast(0)
                     }
 
                     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

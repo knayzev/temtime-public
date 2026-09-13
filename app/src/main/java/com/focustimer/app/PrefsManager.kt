@@ -12,7 +12,8 @@ data class SessionRecord(
     val durationSeconds: Int,
     val interrupted: Boolean,
     val comment: String,
-    val category: String = ""
+    val category: String = "",
+    val quote: String = ""
 )
 
 data class TimerPreset(
@@ -55,6 +56,29 @@ class PrefsManager(context: Context) {
     var stepsEnabled: Boolean
         get() = prefs.getBoolean(KEY_STEPS_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_STEPS_ENABLED, value).apply()
+
+    var stepsBaselineDate: String
+        get() = prefs.getString(KEY_STEPS_BASELINE_DATE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_STEPS_BASELINE_DATE, value).apply()
+
+    var stepsBaselineCount: Int
+        get() = prefs.getInt(KEY_STEPS_BASELINE_COUNT, 0)
+        set(value) = prefs.edit().putInt(KEY_STEPS_BASELINE_COUNT, value).apply()
+
+    var voiceAnnounceEnabled: Boolean
+        get() = prefs.getBoolean(KEY_VOICE_ANNOUNCE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_VOICE_ANNOUNCE_ENABLED, value).apply()
+
+    var voiceAnnounceLeadValue: Int
+        get() = prefs.getInt(KEY_VOICE_ANNOUNCE_VALUE, 30)
+        set(value) = prefs.edit().putInt(KEY_VOICE_ANNOUNCE_VALUE, value).apply()
+
+    var voiceAnnounceUnit: String
+        get() = prefs.getString(KEY_VOICE_ANNOUNCE_UNIT, "Секунды") ?: "Секунды"
+        set(value) = prefs.edit().putString(KEY_VOICE_ANNOUNCE_UNIT, value).apply()
+
+    fun voiceAnnounceLeadSeconds(): Int =
+        if (voiceAnnounceUnit == "Минуты") voiceAnnounceLeadValue * 60 else voiceAnnounceLeadValue
 
     var photoUri: String?
         get() = prefs.getString(KEY_PHOTO, null)
@@ -267,7 +291,8 @@ class PrefsManager(context: Context) {
                     durationSeconds = obj.getInt("durationSeconds"),
                     interrupted = obj.getBoolean("interrupted"),
                     comment = obj.optString("comment", ""),
-                    category = obj.optString("category", "")
+                    category = obj.optString("category", ""),
+                    quote = obj.optString("quote", "")
                 )
             }
         } catch (_: Exception) {
@@ -299,6 +324,7 @@ class PrefsManager(context: Context) {
         put("interrupted", entry.interrupted)
         put("comment", entry.comment)
         put("category", entry.category)
+        put("quote", entry.quote)
     }
 
     fun exportAllData(): String {
@@ -385,7 +411,8 @@ class PrefsManager(context: Context) {
                         durationSeconds = obj.getInt("durationSeconds"),
                         interrupted = obj.getBoolean("interrupted"),
                         comment = obj.optString("comment", ""),
-                        category = obj.optString("category", "")
+                        category = obj.optString("category", ""),
+                        quote = obj.optString("quote", "")
                     )
                 }
                 saveHistory(imported.sortedByDescending { it.startTimeMillis })
@@ -422,6 +449,11 @@ class PrefsManager(context: Context) {
         private const val KEY_LAST_NAME = "last_name"
         private const val KEY_DATA_CONSENT = "data_consent_given"
         private const val KEY_STEPS_ENABLED = "steps_enabled"
+        private const val KEY_STEPS_BASELINE_DATE = "steps_baseline_date"
+        private const val KEY_STEPS_BASELINE_COUNT = "steps_baseline_count"
+        private const val KEY_VOICE_ANNOUNCE_ENABLED = "voice_announce_enabled"
+        private const val KEY_VOICE_ANNOUNCE_VALUE = "voice_announce_value"
+        private const val KEY_VOICE_ANNOUNCE_UNIT = "voice_announce_unit"
         private const val KEY_HISTORY = "session_history"
         private const val KEY_CATEGORIES = "categories"
         private const val KEY_PASSWORD_HASH = "account_password_hash"

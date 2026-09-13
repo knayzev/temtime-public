@@ -92,6 +92,10 @@ private fun GeneralSettingsTab(onLogout: () -> Unit) {
     var autoCallEnabled by remember { mutableStateOf(prefs.autoCallEnabled) }
     var autoCallNumber by remember { mutableStateOf(prefs.autoCallNumber) }
 
+    var voiceAnnounceEnabled by remember { mutableStateOf(prefs.voiceAnnounceEnabled) }
+    var voiceAnnounceValue by remember { mutableStateOf(prefs.voiceAnnounceLeadValue.toString()) }
+    var voiceAnnounceUnit by remember { mutableStateOf(prefs.voiceAnnounceUnit) }
+
     var importMessage by remember { mutableStateOf<String?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -218,6 +222,49 @@ private fun GeneralSettingsTab(onLogout: () -> Unit) {
         }
 
         Divider(modifier = Modifier.padding(vertical = 16.dp))
+        Text("Голосовое предупреждение", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Голосом предупредит о приближении смены этапа заранее",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        )
+        SettingRow("Озвучивать приближение конца этапа", voiceAnnounceEnabled) {
+            voiceAnnounceEnabled = it
+            prefs.voiceAnnounceEnabled = it
+        }
+        if (voiceAnnounceEnabled) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = voiceAnnounceValue,
+                    onValueChange = { input ->
+                        voiceAnnounceValue = input
+                        input.toIntOrNull()?.let { value ->
+                            if (value in 1..600) prefs.voiceAnnounceLeadValue = value
+                        }
+                    },
+                    label = { Text("За сколько") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                DropdownField(
+                    label = "Единицы",
+                    selected = voiceAnnounceUnit,
+                    options = listOf("Секунды", "Минуты"),
+                    onSelected = {
+                        voiceAnnounceUnit = it
+                        prefs.voiceAnnounceUnit = it
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
         Text("Экспорт и бэкап", style = MaterialTheme.typography.titleMedium)
         Text(
             "Все данные хранятся только на этом устройстве — сохраните файл, чтобы не потерять историю",
@@ -319,7 +366,7 @@ private fun ActivitySettingsTab() {
         }
         if (stepsEnabled) {
             Text(
-                liveSteps?.let { "Шагов с последней перезагрузки телефона: $it" } ?: "Считаем шаги…",
+                liveSteps?.let { "Шагов сегодня: $it" } ?: "Считаем шаги…",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 12.dp)
             )

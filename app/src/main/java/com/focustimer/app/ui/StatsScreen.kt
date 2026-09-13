@@ -35,6 +35,7 @@ private data class Achievement(val label: String, val current: Int, val target: 
 fun StatsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
+    val liveSteps = rememberLiveStepCount(prefs.stepsEnabled)
     val history = remember { prefs.getHistory() }
     val workEntries = remember(history) { history.filter { it.phase == "WORK" } }
 
@@ -75,6 +76,9 @@ fun StatsScreen(modifier: Modifier = Modifier) {
         StatRow("За неделю", formatDuration(weekSeconds))
         StatRow("Завершено сессий", "$completedCount из $totalCount")
         StatRow("Текущий стрик", "$streak ${daysWord(streak)}")
+        if (prefs.stepsEnabled) {
+            StatRow("Шаги сегодня", liveSteps?.toString() ?: "…")
+        }
 
         if (categoryBreakdown.isNotEmpty()) {
             Divider(modifier = Modifier.padding(vertical = 16.dp))

@@ -17,6 +17,7 @@ import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.speech.tts.TextToSpeech
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +34,7 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
 enum class TimerPhase { WORK, REST }
 
@@ -86,6 +88,8 @@ class TimerService : Service() {
     private var timerJob: Job? = null
     private var graceJob: Job? = null
     private var sessionStartMillis: Long? = null
+    private var announcedThisPhase = false
+    private var tts: TextToSpeech? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -99,6 +103,11 @@ class TimerService : Service() {
             )
         }
         createNotificationChannels()
+        tts = TextToSpeech(applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                tts?.setLanguage(Locale("ru"))
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -157,9 +166,26 @@ class TimerService : Service() {
                 delay(1000)
                 _uiState.update { it.copy(secondsLeft = it.secondsLeft - 1) }
                 updateOngoingNotification()
+                maybeAnnounceUpcomingPhase()
             }
             onPhaseFinished()
         }
+    }
+
+    private fun maybeAnnounceUpcomingPhase() {
+        if (announcedThisPhase || !prefs.voiceAnnounceEnabled) return
+        val lead = prefs.voiceAnnounceLeadSeconds()
+        if (lead <= 0) return
+        if (_uiState.value.secondsLeft <= lead) {
+            announcedThisPhase = true
+            val current = _uiState.value.phase
+            val text = if (current == TimerPhase.WORK) "Приближается время отдыха" else "Приближается время работы"
+            speak(text)
+        }
+    }
+
+    private fun speak(text: String) {
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_timer_announce")
     }
 
     fun pause() {
@@ -174,6 +200,7 @@ class TimerService : Service() {
         graceJob = null
         flushHistoryEntry(interrupted = true)
         val minutes = _uiState.value.workMinutes
+        announcedThisPhase = false
         _uiState.update {
             it.copy(isRunning = false, phase = TimerPhase.WORK, secondsLeft = minutes * 60, escalationActive = false)
         }
@@ -195,15 +222,17 @@ class TimerService : Service() {
 
     private fun onPhaseFinished() {
         val finishedPhase = _uiState.value.phase
-        flushHistoryEntry(interrupted = false)
+        val quote = if (finishedPhase == TimerPhase.WORK) MOTIVATIONAL_QUOTES.random() else null
+        flushHistoryEntry(interrupted = false, quote = quote ?: "")
         val nextPhase = if (finishedPhase == TimerPhase.WORK) TimerPhase.REST else TimerPhase.WORK
         val minutes = if (nextPhase == TimerPhase.WORK) _uiState.value.workMinutes else _uiState.value.restMinutes
+        announcedThisPhase = false
         _uiState.update {
             it.copy(
                 phase = nextPhase,
                 secondsLeft = minutes * 60,
                 isRunning = false,
-                motivationQuote = if (finishedPhase == TimerPhase.WORK) MOTIVATIONAL_QUOTES.random() else it.motivationQuote
+                motivationQuote = quote ?: it.motivationQuote
             )
         }
         notifyPhaseChanged(nextPhase)
@@ -221,7 +250,7 @@ class TimerService : Service() {
         }
     }
 
-    private fun flushHistoryEntry(interrupted: Boolean) {
+    private fun flushHistoryEntry(interrupted: Boolean, quote: String = "") {
         val start = sessionStartMillis ?: return
         val state = _uiState.value
         val plannedSeconds = (if (state.phase == TimerPhase.WORK) state.workMinutes else state.restMinutes) * 60
@@ -234,7 +263,8 @@ class TimerService : Service() {
                 durationSeconds = elapsedSeconds,
                 interrupted = interrupted,
                 comment = state.currentComment,
-                category = state.currentCategory
+                category = state.currentCategory,
+                quote = quote
             )
         )
         sessionStartMillis = null
@@ -425,6 +455,8 @@ class TimerService : Service() {
     override fun onDestroy() {
         timerJob?.cancel()
         graceJob?.cancel()
+        tts?.stop()
+        tts?.shutdown()
         scope.cancel()
         super.onDestroy()
     }
