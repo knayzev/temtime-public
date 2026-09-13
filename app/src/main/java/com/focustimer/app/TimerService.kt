@@ -68,6 +68,32 @@ val MOTIVATIONAL_QUOTES = listOf(
     "Единственный, кто может остановить тебя, — это ты сам. — неизвестный автор"
 )
 
+val WORK_DONE_PHRASES = listOf(
+    "Пора отдыхать! Выпейте чашку кофе или чая.",
+    "Работа завершена. Самое время немного отдохнуть.",
+    "Отличная работа! Теперь можно расслабиться и передохнуть.",
+    "Время отдыха началось. Встаньте, разомнитесь, подышите свежим воздухом.",
+    "Вы молодец! Сделайте паузу — заварите чай и отдохните.",
+    "Рабочий блок завершён. Дайте глазам и телу отдохнуть.",
+    "Пора сделать перерыв. Прогуляйтесь или выпейте воды.",
+    "Работа окончена — насладитесь заслуженным отдыхом.",
+    "Отлично поработали! Теперь немного расслабьтесь.",
+    "Время выдохнуть. Отдых начался — используйте его с пользой."
+)
+
+val REST_DONE_PHRASES = listOf(
+    "Пора работать! Желаю удачи — всё получится.",
+    "Отдых завершён. Приступим к делу с новыми силами.",
+    "Время снова сосредоточиться. У вас точно получится!",
+    "Перерыв окончен. Вперёд, к новым результатам!",
+    "Пора возвращаться к работе. Вы справитесь!",
+    "Отдохнули — теперь за дело! Удачи вам.",
+    "Рабочее время началось. Сфокусируйтесь и действуйте.",
+    "Время продуктивности! Начинаем работать.",
+    "Перерыв закончен — покажите, на что способны!",
+    "Снова в бой! Желаю продуктивной работы."
+)
+
 /**
  * Runs the work/rest countdown as a foreground service so it keeps going (and can escalate a
  * missed phase change) even while the app is backgrounded or the task is swiped away.
@@ -106,6 +132,9 @@ class TimerService : Service() {
         tts = TextToSpeech(applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts?.setLanguage(Locale("ru"))
+                tts?.setPitch(1.1f)
+                tts?.setSpeechRate(1.02f)
+                pickCheerfulFemaleVoice()?.let { tts?.setVoice(it) }
             }
         }
     }
@@ -188,6 +217,19 @@ class TimerService : Service() {
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_timer_announce")
     }
 
+    /**
+     * Best-effort pick of a pleasant female Russian voice. Voice availability/naming varies by
+     * device and TTS engine, so this quietly falls back to the engine default when no match is
+     * found — it never fails the TTS setup.
+     */
+    private fun pickCheerfulFemaleVoice(): android.speech.tts.Voice? {
+        val voices = tts?.voices ?: return null
+        val ruVoices = voices.filter { it.locale.language == "ru" }
+        return ruVoices.firstOrNull { it.name.contains("female", ignoreCase = true) }
+            ?: ruVoices.firstOrNull { Regex("x-ru[fe]-local", RegexOption.IGNORE_CASE).containsMatchIn(it.name) }
+            ?: ruVoices.firstOrNull { !it.name.contains("male", ignoreCase = true) }
+    }
+
     fun pause() {
         timerJob?.cancel()
         _uiState.update { it.copy(isRunning = false) }
@@ -239,6 +281,10 @@ class TimerService : Service() {
         armGraceTimer()
         start()
         repeatAlert(times = if (finishedPhase == TimerPhase.WORK) 3 else 1)
+        if (prefs.voiceAnnounceEnabled) {
+            val phrase = if (finishedPhase == TimerPhase.WORK) WORK_DONE_PHRASES.random() else REST_DONE_PHRASES.random()
+            speak(phrase)
+        }
     }
 
     private fun repeatAlert(times: Int) {
