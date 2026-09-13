@@ -96,6 +96,10 @@ class PrefsManager(context: Context) {
         get() = prefs.getString(KEY_MARITAL, "") ?: ""
         set(value) = prefs.edit().putString(KEY_MARITAL, value).apply()
 
+    var gender: String
+        get() = prefs.getString(KEY_GENDER, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_GENDER, value).apply()
+
     var wakeTime: String
         get() = prefs.getString(KEY_WAKE_TIME, "07:00") ?: "07:00"
         set(value) = prefs.edit().putString(KEY_WAKE_TIME, value).apply()
@@ -174,6 +178,7 @@ class PrefsManager(context: Context) {
         private const val KEY_HEIGHT = "height_cm"
         private const val KEY_AGE = "age"
         private const val KEY_MARITAL = "marital_status"
+        private const val KEY_GENDER = "gender"
         private const val KEY_WAKE_TIME = "wake_time"
         private const val KEY_BED_TIME = "bed_time"
         private const val KEY_IS_WORKING = "is_working"

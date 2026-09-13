@@ -60,6 +60,12 @@ private val MARITAL_OPTIONS = listOf(
     "Вдовец / вдова"
 )
 
+private val GENDER_OPTIONS = listOf(
+    "Мужской",
+    "Женский",
+    "Не указывать"
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(modifier: Modifier = Modifier) {
@@ -75,6 +81,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
     var heightCm by remember { mutableStateOf(prefs.heightCm) }
     var age by remember { mutableStateOf(prefs.age) }
     var maritalStatus by remember { mutableStateOf(prefs.maritalStatus.ifBlank { MARITAL_OPTIONS[0] }) }
+    var gender by remember { mutableStateOf(prefs.gender.ifBlank { GENDER_OPTIONS[0] }) }
     var wakeTime by remember { mutableStateOf(prefs.wakeTime) }
     var bedTime by remember { mutableStateOf(prefs.bedTime) }
     var isWorking by remember { mutableStateOf(prefs.isWorking) }
@@ -228,41 +235,27 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        var maritalExpanded by remember { mutableStateOf(false) }
-        ExposedDropdownMenuBox(
-            expanded = maritalExpanded,
-            onExpandedChange = { maritalExpanded = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp)
-        ) {
-            OutlinedTextField(
-                value = maritalStatus,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Семейное положение") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = maritalExpanded) },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-            DropdownMenu(
-                expanded = maritalExpanded,
-                onDismissRequest = { maritalExpanded = false },
-                modifier = Modifier.exposedDropdownSize()
-            ) {
-                MARITAL_OPTIONS.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option) },
-                        onClick = {
-                            maritalStatus = option
-                            prefs.maritalStatus = option
-                            maritalExpanded = false
-                        }
-                    )
-                }
-            }
-        }
+        DropdownField(
+            label = "Пол",
+            selected = gender,
+            options = GENDER_OPTIONS,
+            onSelected = {
+                gender = it
+                prefs.gender = it
+            },
+            modifier = Modifier.padding(top = 16.dp)
+        )
+
+        DropdownField(
+            label = "Семейное положение",
+            selected = maritalStatus,
+            options = MARITAL_OPTIONS,
+            onSelected = {
+                maritalStatus = it
+                prefs.maritalStatus = it
+            },
+            modifier = Modifier.padding(top = 16.dp)
+        )
 
         TimePickerRow(
             label = "Обычно встаю",
@@ -296,6 +289,49 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                     prefs.isWorking = it
                 }
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DropdownField(
+    label: String,
+    selected: String,
+    options: List<String>,
+    onSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.exposedDropdownSize()
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelected(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
