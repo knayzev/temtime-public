@@ -39,11 +39,10 @@ fun LifestyleQuestionsScreen(onComplete: () -> Unit, modifier: Modifier = Modifi
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
 
-    var answers by remember {
-        mutableStateOf(
-            LIFESTYLE_QUESTIONS.associate { q -> q.id to (prefs.lifestyleAnswers[q.id] ?: emptyList()) }
-        )
+    val initialAnswers: Map<String, List<String>> = LIFESTYLE_QUESTIONS.associate { q ->
+        q.id to (prefs.lifestyleAnswers[q.id] ?: emptyList())
     }
+    var answers by remember { mutableStateOf(initialAnswers) }
 
     var showResult by remember { mutableStateOf(false) }
     var regenerateCount by remember { mutableStateOf(0) }
