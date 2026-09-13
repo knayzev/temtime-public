@@ -1,6 +1,17 @@
 package com.focustimer.app
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
+data class SessionRecord(
+    val id: Long,
+    val phase: String,
+    val startTimeMillis: Long,
+    val durationSeconds: Int,
+    val interrupted: Boolean,
+    val comment: String
+)
 
 class PrefsManager(context: Context) {
     private val prefs = context.getSharedPreferences("focus_timer_prefs", Context.MODE_PRIVATE)
@@ -8,6 +19,18 @@ class PrefsManager(context: Context) {
     var userName: String
         get() = prefs.getString(KEY_NAME, "") ?: ""
         set(value) = prefs.edit().putString(KEY_NAME, value).apply()
+
+    var lastName: String
+        get() = prefs.getString(KEY_LAST_NAME, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LAST_NAME, value).apply()
+
+    var dataConsentGiven: Boolean
+        get() = prefs.getBoolean(KEY_DATA_CONSENT, false)
+        set(value) = prefs.edit().putBoolean(KEY_DATA_CONSENT, value).apply()
+
+    var stepsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_STEPS_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_STEPS_ENABLED, value).apply()
 
     var photoUri: String?
         get() = prefs.getString(KEY_PHOTO, null)
@@ -85,7 +108,55 @@ class PrefsManager(context: Context) {
         get() = prefs.getBoolean(KEY_IS_WORKING, true)
         set(value) = prefs.edit().putBoolean(KEY_IS_WORKING, value).apply()
 
+    fun getHistory(): List<SessionRecord> {
+        val raw = prefs.getString(KEY_HISTORY, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            (0 until array.length()).map { i ->
+                val obj = array.getJSONObject(i)
+                SessionRecord(
+                    id = obj.getLong("id"),
+                    phase = obj.getString("phase"),
+                    startTimeMillis = obj.getLong("startTimeMillis"),
+                    durationSeconds = obj.getInt("durationSeconds"),
+                    interrupted = obj.getBoolean("interrupted"),
+                    comment = obj.optString("comment", "")
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun addHistoryEntry(entry: SessionRecord) {
+        val updated = listOf(entry) + getHistory()
+        saveHistory(updated.take(MAX_HISTORY_ENTRIES))
+    }
+
+    fun updateHistoryComment(id: Long, comment: String) {
+        val updated = getHistory().map { if (it.id == id) it.copy(comment = comment) else it }
+        saveHistory(updated)
+    }
+
+    private fun saveHistory(entries: List<SessionRecord>) {
+        val array = JSONArray()
+        entries.forEach { entry ->
+            array.put(
+                JSONObject().apply {
+                    put("id", entry.id)
+                    put("phase", entry.phase)
+                    put("startTimeMillis", entry.startTimeMillis)
+                    put("durationSeconds", entry.durationSeconds)
+                    put("interrupted", entry.interrupted)
+                    put("comment", entry.comment)
+                }
+            )
+        }
+        prefs.edit().putString(KEY_HISTORY, array.toString()).apply()
+    }
+
     companion object {
+        private const val MAX_HISTORY_ENTRIES = 300
         private const val KEY_NAME = "user_name"
         private const val KEY_PHOTO = "photo_uri"
         private const val KEY_WORK_MIN = "work_minutes"
@@ -106,5 +177,9 @@ class PrefsManager(context: Context) {
         private const val KEY_WAKE_TIME = "wake_time"
         private const val KEY_BED_TIME = "bed_time"
         private const val KEY_IS_WORKING = "is_working"
+        private const val KEY_LAST_NAME = "last_name"
+        private const val KEY_DATA_CONSENT = "data_consent_given"
+        private const val KEY_STEPS_ENABLED = "steps_enabled"
+        private const val KEY_HISTORY = "session_history"
     }
 }

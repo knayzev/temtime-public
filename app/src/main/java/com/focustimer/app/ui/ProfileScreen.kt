@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -66,8 +67,10 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
     val prefs = remember { PrefsManager(context) }
 
     var name by remember { mutableStateOf(prefs.userName) }
+    var lastName by remember { mutableStateOf(prefs.lastName) }
     var photoUri by remember { mutableStateOf(prefs.photoUri?.let { Uri.parse(it) }) }
     var email by remember { mutableStateOf(prefs.email) }
+    var dataConsent by remember { mutableStateOf(prefs.dataConsentGiven) }
     var weightKg by remember { mutableStateOf(prefs.weightKg) }
     var heightCm by remember { mutableStateOf(prefs.heightCm) }
     var age by remember { mutableStateOf(prefs.age) }
@@ -143,6 +146,18 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
         )
 
         OutlinedTextField(
+            value = lastName,
+            onValueChange = {
+                lastName = it
+                prefs.lastName = it
+            },
+            label = { Text("Фамилия") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+        )
+
+        OutlinedTextField(
             value = email,
             onValueChange = {
                 email = it
@@ -154,6 +169,26 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .padding(top = 8.dp)
         )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .clickable {
+                    dataConsent = !dataConsent
+                    prefs.dataConsentGiven = dataConsent
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = dataConsent,
+                onCheckedChange = {
+                    dataConsent = it
+                    prefs.dataConsentGiven = it
+                }
+            )
+            Text("Согласен(на) на обработку персональных данных")
+        }
 
         Divider(modifier = Modifier.padding(vertical = 16.dp))
 

@@ -42,7 +42,8 @@ data class TimerUiState(
     val secondsLeft: Int = 0,
     val workMinutes: Int = 25,
     val restMinutes: Int = 5,
-    val escalationActive: Boolean = false
+    val escalationActive: Boolean = false,
+    val currentComment: String = ""
 )
 
 /**
@@ -64,6 +65,7 @@ class TimerService : Service() {
 
     private var timerJob: Job? = null
     private var graceJob: Job? = null
+    private var sessionStartMillis: Long? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -109,8 +111,15 @@ class TimerService : Service() {
         }
     }
 
+    fun setComment(text: String) {
+        _uiState.update { it.copy(currentComment = text) }
+    }
+
     fun start() {
         if (_uiState.value.isRunning) return
+        if (sessionStartMillis == null) {
+            sessionStartMillis = System.currentTimeMillis()
+        }
         startForegroundCompat(buildOngoingNotification())
         _uiState.update { it.copy(isRunning = true) }
         timerJob?.cancel()
@@ -134,6 +143,7 @@ class TimerService : Service() {
         timerJob?.cancel()
         graceJob?.cancel()
         graceJob = null
+        flushHistoryEntry(interrupted = true)
         val minutes = _uiState.value.workMinutes
         _uiState.update {
             it.copy(isRunning = false, phase = TimerPhase.WORK, secondsLeft = minutes * 60, escalationActive = false)
@@ -156,12 +166,32 @@ class TimerService : Service() {
 
     private fun onPhaseFinished() {
         alertUser()
+        flushHistoryEntry(interrupted = false)
         val nextPhase = if (_uiState.value.phase == TimerPhase.WORK) TimerPhase.REST else TimerPhase.WORK
         val minutes = if (nextPhase == TimerPhase.WORK) _uiState.value.workMinutes else _uiState.value.restMinutes
         _uiState.update { it.copy(phase = nextPhase, secondsLeft = minutes * 60, isRunning = false) }
         notifyPhaseChanged(nextPhase)
         armGraceTimer()
         start()
+    }
+
+    private fun flushHistoryEntry(interrupted: Boolean) {
+        val start = sessionStartMillis ?: return
+        val state = _uiState.value
+        val plannedSeconds = (if (state.phase == TimerPhase.WORK) state.workMinutes else state.restMinutes) * 60
+        val elapsedSeconds = if (interrupted) (plannedSeconds - state.secondsLeft).coerceAtLeast(0) else plannedSeconds
+        prefs.addHistoryEntry(
+            SessionRecord(
+                id = start,
+                phase = state.phase.name,
+                startTimeMillis = start,
+                durationSeconds = elapsedSeconds,
+                interrupted = interrupted,
+                comment = state.currentComment
+            )
+        )
+        sessionStartMillis = null
+        _uiState.update { it.copy(currentComment = "") }
     }
 
     private fun armGraceTimer() {

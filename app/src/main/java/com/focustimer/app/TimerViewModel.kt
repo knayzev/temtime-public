@@ -64,6 +64,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun acknowledge() = service?.acknowledge()
 
+    fun setComment(text: String) = service?.setComment(text)
+
     override fun onCleared() {
         if (bound) {
             getApplication<Application>().unbindService(connection)

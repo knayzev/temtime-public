@@ -1,7 +1,13 @@
 package com.focustimer.app.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,11 +52,42 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     var autoCallEnabled by remember { mutableStateOf(prefs.autoCallEnabled) }
     var autoCallNumber by remember { mutableStateOf(prefs.autoCallNumber) }
 
+    var stepsEnabled by remember { mutableStateOf(prefs.stepsEnabled) }
+    var stepCount by remember { mutableStateOf<Int?>(null) }
+
     val callPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         autoCallEnabled = granted
         prefs.autoCallEnabled = granted
+    }
+
+    val activityRecognitionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        stepsEnabled = granted
+        prefs.stepsEnabled = granted
+    }
+
+    DisposableEffect(stepsEnabled) {
+        var listener: SensorEventListener? = null
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        if (stepsEnabled && sensorManager != null) {
+            val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            if (sensor != null) {
+                listener = object : SensorEventListener {
+                    override fun onSensorChanged(event: SensorEvent) {
+                        stepCount = event.values[0].toInt()
+                    }
+
+                    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                }
+                sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
+            }
+        }
+        onDispose {
+            listener?.let { sensorManager?.unregisterListener(it) }
+        }
     }
 
     Column(
@@ -143,6 +181,33 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
+            )
+        }
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+        SettingRow("Счётчик шагов", stepsEnabled) { checked ->
+            if (checked) {
+                val needsRuntimePermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                val granted = !needsRuntimePermission || ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.ACTIVITY_RECOGNITION
+                ) == PackageManager.PERMISSION_GRANTED
+                if (granted) {
+                    stepsEnabled = true
+                    prefs.stepsEnabled = true
+                } else {
+                    activityRecognitionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                }
+            } else {
+                stepsEnabled = false
+                prefs.stepsEnabled = false
+            }
+        }
+        if (stepsEnabled) {
+            Text(
+                stepCount?.let { "Шагов с последней перезагрузки телефона: $it" } ?: "Считаем шаги…",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
         }
     }
