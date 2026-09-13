@@ -112,15 +112,12 @@ fun OnboardingScreen(onComplete: () -> Unit, modifier: Modifier = Modifier) {
         )
 
         Button(
-            onClick = {
-                prefs.isOnboarded = true
-                onComplete()
-            },
+            onClick = { onComplete() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 32.dp)
         ) {
-            Text("Готово")
+            Text("Далее")
         }
     }
 }

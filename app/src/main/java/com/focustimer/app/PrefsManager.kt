@@ -180,6 +180,29 @@ class PrefsManager(context: Context) {
         get() = prefs.getInt(KEY_WATER_COUNT, 4)
         set(value) = prefs.edit().putInt(KEY_WATER_COUNT, value).apply()
 
+    var daySchedule: String
+        get() = prefs.getString(KEY_DAY_SCHEDULE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_DAY_SCHEDULE, value).apply()
+
+    var lifestyleAnswers: Map<String, List<String>>
+        get() {
+            val raw = prefs.getString(KEY_LIFESTYLE_ANSWERS, null) ?: return emptyMap()
+            return try {
+                val obj = JSONObject(raw)
+                obj.keys().asSequence().associateWith { key ->
+                    val arr = obj.getJSONArray(key)
+                    (0 until arr.length()).map { arr.getString(it) }
+                }
+            } catch (_: Exception) {
+                emptyMap()
+            }
+        }
+        set(value) {
+            val obj = JSONObject()
+            value.forEach { (key, answers) -> obj.put(key, JSONArray(answers)) }
+            prefs.edit().putString(KEY_LIFESTYLE_ANSWERS, obj.toString()).apply()
+        }
+
     var presets: List<TimerPreset>
         get() {
             val raw = prefs.getString(KEY_PRESETS, null) ?: return DEFAULT_PRESETS
@@ -413,5 +436,7 @@ class PrefsManager(context: Context) {
         private const val KEY_WATER_UNIT = "water_unit"
         private const val KEY_WATER_COUNT = "water_count"
         private const val KEY_PRESETS = "timer_presets"
+        private const val KEY_DAY_SCHEDULE = "day_schedule"
+        private const val KEY_LIFESTYLE_ANSWERS = "lifestyle_answers"
     }
 }

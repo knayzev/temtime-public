@@ -39,6 +39,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.focustimer.app.ui.AuthScreen
 import com.focustimer.app.ui.HistoryScreen
+import com.focustimer.app.ui.LifestyleQuestionsScreen
 import com.focustimer.app.ui.OnboardingScreen
 import com.focustimer.app.ui.ProfileScreen
 import com.focustimer.app.ui.SettingsScreen
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class RootScreen { AUTH, ONBOARDING, MAIN }
+private enum class RootScreen { AUTH, ONBOARDING, LIFESTYLE, MAIN }
 
 @Composable
 fun RootNavigator(timerViewModel: TimerViewModel) {
@@ -83,7 +84,8 @@ fun RootNavigator(timerViewModel: TimerViewModel) {
                 screen = if (prefs.isOnboarded) RootScreen.MAIN else RootScreen.ONBOARDING
             }
         )
-        RootScreen.ONBOARDING -> OnboardingScreen(onComplete = { screen = RootScreen.MAIN })
+        RootScreen.ONBOARDING -> OnboardingScreen(onComplete = { screen = RootScreen.LIFESTYLE })
+        RootScreen.LIFESTYLE -> LifestyleQuestionsScreen(onComplete = { screen = RootScreen.MAIN })
         RootScreen.MAIN -> AppRoot(
             timerViewModel = timerViewModel,
             onLogout = {

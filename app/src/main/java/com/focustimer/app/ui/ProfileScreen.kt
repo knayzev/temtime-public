@@ -304,6 +304,17 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        if (prefs.daySchedule.isNotBlank()) {
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
+            Text("Ваш график дня", style = MaterialTheme.typography.titleMedium)
+            Text(
+                prefs.daySchedule,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+        }
     }
 }
 
