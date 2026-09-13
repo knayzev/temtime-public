@@ -29,7 +29,7 @@ fun buildAdvice(weightKgText: String, heightCmText: String, ageText: String, gen
     }
 
     if (weight != null) {
-        advice += weightExtremeAdvice(weight, age)
+        weightExtremeAdvice(weight, age)?.let { advice += it }
     }
 
     if (heightCm != null) {
