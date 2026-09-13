@@ -44,7 +44,26 @@ data class TimerUiState(
     val restMinutes: Int = 5,
     val escalationActive: Boolean = false,
     val currentComment: String = "",
-    val currentCategory: String = ""
+    val currentCategory: String = "",
+    val motivationQuote: String? = null
+)
+
+val MOTIVATIONAL_QUOTES = listOf(
+    "Успех — это способность идти от одной неудачи к другой, не теряя энтузиазма. — Уинстон Черчилль",
+    "Единственный способ сделать великую работу — любить то, что ты делаешь. — Стив Джобс",
+    "Не бойтесь совершенства — вам его не достичь. — Сальвадор Дали",
+    "Дисциплина — это мост между целями и результатом. — Джим Рон",
+    "Я не терпел неудачу. Я просто нашёл 10 000 способов, которые не работают. — Томас Эдисон",
+    "Секрет продвижения вперёд — начать. — Марк Твен",
+    "Тяжело в учении — легко в бою. — Александр Суворов",
+    "Будущее принадлежит тем, кто верит в красоту своей мечты. — Элеонора Рузвельт",
+    "Маленькие ежедневные улучшения со временем дают потрясающие результаты. — Робин Шарма",
+    "Ты никогда не будешь готов на 100%. Начни с тем, что есть. — Наполеон Хилл",
+    "Не считай дни, делай дни значимыми. — Мухаммед Али",
+    "Лучшее время посадить дерево было 20 лет назад. Второе лучшее — сейчас. — китайская пословица",
+    "Делай то, что можешь, с тем, что имеешь, там, где ты есть. — Теодор Рузвельт",
+    "Мотивация — то, что заставляет тебя начать. Привычка — то, что заставляет продолжать. — Джим Рон",
+    "Единственный, кто может остановить тебя, — это ты сам. — неизвестный автор"
 )
 
 /**
@@ -121,6 +140,10 @@ class TimerService : Service() {
         _uiState.update { it.copy(currentCategory = category) }
     }
 
+    fun dismissQuote() {
+        _uiState.update { it.copy(motivationQuote = null) }
+    }
+
     fun start() {
         if (_uiState.value.isRunning) return
         if (sessionStartMillis == null) {
@@ -171,14 +194,31 @@ class TimerService : Service() {
     }
 
     private fun onPhaseFinished() {
-        alertUser()
+        val finishedPhase = _uiState.value.phase
         flushHistoryEntry(interrupted = false)
-        val nextPhase = if (_uiState.value.phase == TimerPhase.WORK) TimerPhase.REST else TimerPhase.WORK
+        val nextPhase = if (finishedPhase == TimerPhase.WORK) TimerPhase.REST else TimerPhase.WORK
         val minutes = if (nextPhase == TimerPhase.WORK) _uiState.value.workMinutes else _uiState.value.restMinutes
-        _uiState.update { it.copy(phase = nextPhase, secondsLeft = minutes * 60, isRunning = false) }
+        _uiState.update {
+            it.copy(
+                phase = nextPhase,
+                secondsLeft = minutes * 60,
+                isRunning = false,
+                motivationQuote = if (finishedPhase == TimerPhase.WORK) MOTIVATIONAL_QUOTES.random() else it.motivationQuote
+            )
+        }
         notifyPhaseChanged(nextPhase)
         armGraceTimer()
         start()
+        repeatAlert(times = if (finishedPhase == TimerPhase.WORK) 3 else 1)
+    }
+
+    private fun repeatAlert(times: Int) {
+        scope.launch {
+            repeat(times) { index ->
+                alertUser()
+                if (index < times - 1) delay(1200)
+            }
+        }
     }
 
     private fun flushHistoryEntry(interrupted: Boolean) {

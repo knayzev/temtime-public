@@ -68,6 +68,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setCategory(category: String) = service?.setCategory(category)
 
+    fun dismissQuote() = service?.dismissQuote()
+
     override fun onCleared() {
         if (bound) {
             getApplication<Application>().unbindService(connection)

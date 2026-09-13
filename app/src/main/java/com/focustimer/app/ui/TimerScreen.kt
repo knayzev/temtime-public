@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -58,7 +59,9 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
     val minutes = state.secondsLeft / 60
     val seconds = state.secondsLeft % 60
     val context = LocalContext.current
-    val categories = remember { PrefsManager(context).categories }
+    val prefs = remember { PrefsManager(context) }
+    val categories = remember { prefs.categories }
+    val liveSteps = rememberLiveStepCount(prefs.stepsEnabled)
 
     // Being on this screen counts as noticing the current phase.
     LaunchedEffect(Unit) {
@@ -97,6 +100,43 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
                     if (preset.comment.isNotBlank()) viewModel.setComment(preset.comment)
                 }
             )
+        }
+
+        if (liveSteps != null) {
+            Text(
+                "Шаги: $liveSteps",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        state.motivationQuote?.let { quote ->
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        quote,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { viewModel.dismissQuote() }) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Скрыть",
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
         }
 
         Text(
@@ -150,22 +190,60 @@ fun TimerScreen(viewModel: TimerViewModel, modifier: Modifier = Modifier) {
 
         if (!state.isRunning) {
             Column(modifier = Modifier.padding(top = 32.dp).fillMaxWidth()) {
-                Text("Время работы: ${state.workMinutes} мин")
+                MinutesInputRow(
+                    label = "Время работы",
+                    minutes = state.workMinutes,
+                    onMinutesChange = { viewModel.setWorkMinutes(it) }
+                )
                 Slider(
-                    value = state.workMinutes.toFloat(),
+                    value = state.workMinutes.toFloat().coerceIn(5f, 100f),
                     onValueChange = { viewModel.setWorkMinutes(it.toInt()) },
                     valueRange = 5f..100f,
                     steps = 18
                 )
-                Text("Время отдыха: ${state.restMinutes} мин")
+                MinutesInputRow(
+                    label = "Время отдыха",
+                    minutes = state.restMinutes,
+                    onMinutesChange = { viewModel.setRestMinutes(it) },
+                    modifier = Modifier.padding(top = 16.dp)
+                )
                 Slider(
-                    value = state.restMinutes.toFloat(),
+                    value = state.restMinutes.toFloat().coerceIn(5f, 100f),
                     onValueChange = { viewModel.setRestMinutes(it.toInt()) },
                     valueRange = 5f..100f,
                     steps = 18
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MinutesInputRow(
+    label: String,
+    minutes: Int,
+    onMinutesChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(minutes) { mutableStateOf(minutes.toString()) }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$label, мин")
+        OutlinedTextField(
+            value = text,
+            onValueChange = { input ->
+                text = input
+                input.toIntOrNull()?.let { value ->
+                    if (value in 1..300) onMinutesChange(value)
+                }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.width(90.dp)
+        )
     }
 }
 

@@ -1,17 +1,13 @@
 package com.focustimer.app.ui
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,11 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +45,39 @@ import com.focustimer.app.PrefsManager
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        Text(
+            "Настройки",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+        )
+
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("Основные настройки") }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("Активность") }
+            )
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            when (selectedTab) {
+                0 -> GeneralSettingsTab(onLogout = onLogout)
+                1 -> ActivitySettingsTab()
+            }
+        }
+    }
+}
+
+@Composable
+private fun GeneralSettingsTab(onLogout: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
 
@@ -60,12 +91,6 @@ fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
 
     var autoCallEnabled by remember { mutableStateOf(prefs.autoCallEnabled) }
     var autoCallNumber by remember { mutableStateOf(prefs.autoCallNumber) }
-
-    var stepsEnabled by remember { mutableStateOf(prefs.stepsEnabled) }
-    var stepCount by remember { mutableStateOf<Int?>(null) }
-
-    var categories by remember { mutableStateOf(prefs.categories) }
-    var newCategory by remember { mutableStateOf("") }
 
     var importMessage by remember { mutableStateOf<String?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
@@ -100,42 +125,12 @@ fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
         prefs.autoCallEnabled = granted
     }
 
-    val activityRecognitionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        stepsEnabled = granted
-        prefs.stepsEnabled = granted
-    }
-
-    DisposableEffect(stepsEnabled) {
-        var listener: SensorEventListener? = null
-        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        if (stepsEnabled && sensorManager != null) {
-            val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-            if (sensor != null) {
-                listener = object : SensorEventListener {
-                    override fun onSensorChanged(event: SensorEvent) {
-                        stepCount = event.values[0].toInt()
-                    }
-
-                    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-                }
-                sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)
-            }
-        }
-        onDispose {
-            listener?.let { sensorManager?.unregisterListener(it) }
-        }
-    }
-
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
-        Text("Настройки", style = MaterialTheme.typography.headlineMedium)
-
         SettingRow("Звук по окончании этапа", soundEnabled) {
             soundEnabled = it
             prefs.soundEnabled = it
@@ -223,7 +218,88 @@ fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
         }
 
         Divider(modifier = Modifier.padding(vertical = 16.dp))
+        Text("Экспорт и бэкап", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Все данные хранятся только на этом устройстве — сохраните файл, чтобы не потерять историю",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { exportLauncher.launch("focus-timer-backup.json") }) {
+                Text("Экспортировать")
+            }
+            OutlinedButton(onClick = { importPickLauncher.launch("application/json") }) {
+                Text("Импортировать")
+            }
+        }
+        importMessage?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
 
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+        OutlinedButton(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Выйти из аккаунта")
+        }
+    }
+
+    if (pendingImportUri != null) {
+        AlertDialog(
+            onDismissRequest = { pendingImportUri = null },
+            title = { Text("Импортировать данные?") },
+            text = { Text("Текущий профиль, настройки и история будут заменены содержимым файла.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val uri = pendingImportUri
+                    pendingImportUri = null
+                    if (uri != null) {
+                        val text = try {
+                            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        } catch (_: Exception) {
+                            null
+                        }
+                        val success = text != null && prefs.importAllData(text)
+                        importMessage = if (success) "Данные импортированы" else "Не удалось прочитать файл"
+                    }
+                }) { Text("Импортировать") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImportUri = null }) { Text("Отмена") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ActivitySettingsTab() {
+    val context = LocalContext.current
+    val prefs = remember { PrefsManager(context) }
+
+    var stepsEnabled by remember { mutableStateOf(prefs.stepsEnabled) }
+    var categories by remember { mutableStateOf(prefs.categories) }
+    var newCategory by remember { mutableStateOf("") }
+
+    val activityRecognitionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        stepsEnabled = granted
+        prefs.stepsEnabled = granted
+    }
+
+    val liveSteps = rememberLiveStepCount(stepsEnabled)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
         SettingRow("Счётчик шагов", stepsEnabled) { checked ->
             if (checked) {
                 val needsRuntimePermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
@@ -243,7 +319,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
         }
         if (stepsEnabled) {
             Text(
-                stepCount?.let { "Шагов с последней перезагрузки телефона: $it" } ?: "Считаем шаги…",
+                liveSteps?.let { "Шагов с последней перезагрузки телефона: $it" } ?: "Считаем шаги…",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
@@ -298,68 +374,6 @@ fun SettingsScreen(modifier: Modifier = Modifier, onLogout: () -> Unit = {}) {
                 Text("Добавить")
             }
         }
-
-        Divider(modifier = Modifier.padding(vertical = 16.dp))
-        Text("Экспорт и бэкап", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Все данные хранятся только на этом устройстве — сохраните файл, чтобы не потерять историю",
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { exportLauncher.launch("focus-timer-backup.json") }) {
-                Text("Экспортировать")
-            }
-            OutlinedButton(onClick = { importPickLauncher.launch("application/json") }) {
-                Text("Импортировать")
-            }
-        }
-        importMessage?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-
-        Divider(modifier = Modifier.padding(vertical = 16.dp))
-        OutlinedButton(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Выйти из аккаунта")
-        }
-    }
-
-    if (pendingImportUri != null) {
-        AlertDialog(
-            onDismissRequest = { pendingImportUri = null },
-            title = { Text("Импортировать данные?") },
-            text = { Text("Текущий профиль, настройки и история будут заменены содержимым файла.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    val uri = pendingImportUri
-                    pendingImportUri = null
-                    if (uri != null) {
-                        val text = try {
-                            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                        } catch (_: Exception) {
-                            null
-                        }
-                        val success = text != null && prefs.importAllData(text)
-                        importMessage = if (success) {
-                            categories = prefs.categories
-                            "Данные импортированы"
-                        } else {
-                            "Не удалось прочитать файл"
-                        }
-                    }
-                }) { Text("Импортировать") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingImportUri = null }) { Text("Отмена") }
-            }
-        )
     }
 }
 

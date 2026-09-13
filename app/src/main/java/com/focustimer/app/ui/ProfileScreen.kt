@@ -33,12 +33,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,9 +69,42 @@ private val GENDER_OPTIONS = listOf(
     "Женский"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(modifier: Modifier = Modifier) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("Профиль") }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("График дня") }
+            )
+            Tab(
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                text = { Text("Рекомендации") }
+            )
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            when (selectedTab) {
+                0 -> ProfileFormTab()
+                1 -> ScheduleTab()
+                2 -> RecommendationsTab()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileFormTab() {
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
 
@@ -103,14 +139,12 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
     }
 
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Профиль", style = MaterialTheme.typography.headlineMedium)
-
         Box(
             modifier = Modifier
                 .padding(vertical = 24.dp)
@@ -291,29 +325,57 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        val advice = remember(weightKg, heightCm, age, gender) {
-            buildAdvice(weightKg, heightCm, age, gender)
+    }
+}
+
+@Composable
+private fun ScheduleTab() {
+    val context = LocalContext.current
+    val prefs = remember { PrefsManager(context) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text("Ваш график дня", style = MaterialTheme.typography.headlineMedium)
+        if (prefs.daySchedule.isBlank()) {
+            Text(
+                "График ещё не сгенерирован — пройдите анкету образа жизни при регистрации, чтобы получить его",
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        } else {
+            Text(
+                prefs.daySchedule,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            )
         }
-        Divider(modifier = Modifier.padding(vertical = 16.dp))
-        Text("Персональные рекомендации", style = MaterialTheme.typography.titleMedium)
-        Column(modifier = Modifier.padding(top = 8.dp)) {
+    }
+}
+
+@Composable
+private fun RecommendationsTab() {
+    val context = LocalContext.current
+    val prefs = remember { PrefsManager(context) }
+    val advice = remember { buildAdvice(prefs.weightKg, prefs.heightCm, prefs.age, prefs.gender) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text("Персональные рекомендации", style = MaterialTheme.typography.headlineMedium)
+        Column(modifier = Modifier.padding(top = 12.dp)) {
             advice.forEach { tip ->
                 Row(modifier = Modifier.padding(vertical = 4.dp)) {
                     Text("• ", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text(tip)
                 }
             }
-        }
-
-        if (prefs.daySchedule.isNotBlank()) {
-            Divider(modifier = Modifier.padding(vertical = 16.dp))
-            Text("Ваш график дня", style = MaterialTheme.typography.titleMedium)
-            Text(
-                prefs.daySchedule,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-            )
         }
     }
 }
