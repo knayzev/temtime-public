@@ -24,6 +24,15 @@ data class TimerPreset(
     val comment: String = ""
 )
 
+data class DayPlan(
+    val tasks: String = "",
+    val priority: String = "",
+    val dontForget: String = "",
+    val updatedAtMillis: Long = 0L
+) {
+    val isEmpty: Boolean get() = tasks.isBlank() && priority.isBlank() && dontForget.isBlank()
+}
+
 val DEFAULT_CATEGORIES = listOf("Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое")
 
 val DEFAULT_PRESETS = listOf(
@@ -211,6 +220,31 @@ class PrefsManager(context: Context) {
     var daySchedule: String
         get() = prefs.getString(KEY_DAY_SCHEDULE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_DAY_SCHEDULE, value).apply()
+
+    var dayPlan: DayPlan
+        get() {
+            val raw = prefs.getString(KEY_DAY_PLAN, null) ?: return DayPlan()
+            return try {
+                val obj = JSONObject(raw)
+                DayPlan(
+                    tasks = obj.optString("tasks", ""),
+                    priority = obj.optString("priority", ""),
+                    dontForget = obj.optString("dontForget", ""),
+                    updatedAtMillis = obj.optLong("updatedAtMillis", 0L)
+                )
+            } catch (_: Exception) {
+                DayPlan()
+            }
+        }
+        set(value) {
+            val obj = JSONObject().apply {
+                put("tasks", value.tasks)
+                put("priority", value.priority)
+                put("dontForget", value.dontForget)
+                put("updatedAtMillis", value.updatedAtMillis)
+            }
+            prefs.edit().putString(KEY_DAY_PLAN, obj.toString()).apply()
+        }
 
     var lifestyleAnswers: Map<String, List<String>>
         get() {
@@ -474,6 +508,7 @@ class PrefsManager(context: Context) {
         private const val KEY_WATER_COUNT = "water_count"
         private const val KEY_PRESETS = "timer_presets"
         private const val KEY_DAY_SCHEDULE = "day_schedule"
+        private const val KEY_DAY_PLAN = "day_plan"
         private const val KEY_LIFESTYLE_ANSWERS = "lifestyle_answers"
     }
 }
