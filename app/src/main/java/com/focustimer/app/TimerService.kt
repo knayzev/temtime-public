@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -32,6 +33,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -247,14 +252,36 @@ class TimerService : Service() {
         if (prefs.voiceLanguage == "English") Locale.US else Locale("ru")
 
     private fun speak(text: String) {
+        val female = nextVoiceFemale
+        nextVoiceFemale = !nextVoiceFemale
+
+        if (prefs.elevenLabsEnabled && prefs.elevenLabsApiKey.isNotBlank()) {
+            scope.launch(Dispatchers.IO) {
+                val audioFile = if (isNetworkAvailable()) fetchElevenLabsAudio(text, female) else null
+                withContext(Dispatchers.Main) {
+                    if (audioFile != null) {
+                        playElevenLabsAudio(audioFile)
+                    } else {
+                        speakNative(text, female)
+                    }
+                }
+            }
+        } else {
+            speakNative(text, female)
+        }
+    }
+
+    /**
+     * Falls back to the on-device TextToSpeech engine — used both when ElevenLabs is disabled
+     * and whenever the ElevenLabs call fails (offline, invalid key, quota exceeded, etc.), so
+     * voice announcements never silently stop working.
+     */
+    private fun speakNative(text: String, female: Boolean) {
         val engine = tts ?: return
         if (!ttsReady) return
 
         val locale = currentVoiceLocale()
         engine.setLanguage(locale)
-
-        val female = nextVoiceFemale
-        nextVoiceFemale = !nextVoiceFemale
 
         val voice = pickVoice(engine, locale, female)
         if (voice != null) {
@@ -266,6 +293,64 @@ class TimerService : Service() {
         engine.setSpeechRate(1.0f)
 
         engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_timer_announce")
+    }
+
+    /** Runs on Dispatchers.IO. Returns null (never throws) so the caller can fall back to speakNative. */
+    private fun fetchElevenLabsAudio(text: String, female: Boolean): File? {
+        val voiceId = if (female) prefs.elevenLabsVoiceIdFemale else prefs.elevenLabsVoiceIdMale
+        var connection: HttpURLConnection? = null
+        return try {
+            val url = URL("https://api.elevenlabs.io/v1/text-to-speech/$voiceId")
+            connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                connectTimeout = 8000
+                readTimeout = 15000
+                setRequestProperty("xi-api-key", prefs.elevenLabsApiKey)
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "audio/mpeg")
+            }
+            val body = JSONObject().apply {
+                put("text", text)
+                put("model_id", "eleven_multilingual_v2")
+                put("voice_settings", JSONObject().apply {
+                    put("stability", 0.5)
+                    put("similarity_boost", 0.75)
+                })
+            }
+            OutputStreamWriter(connection.outputStream).use { it.write(body.toString()) }
+            if (connection.responseCode != 200) return null
+
+            val file = File(cacheDir, "eleven_${System.currentTimeMillis()}.mp3")
+            connection.inputStream.use { input ->
+                FileOutputStream(file).use { output -> input.copyTo(output) }
+            }
+            file
+        } catch (_: Exception) {
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private fun playElevenLabsAudio(file: File) {
+        try {
+            val player = MediaPlayer()
+            player.setDataSource(file.absolutePath)
+            player.setOnCompletionListener {
+                it.release()
+                file.delete()
+            }
+            player.setOnErrorListener { mp, _, _ ->
+                mp.release()
+                file.delete()
+                true
+            }
+            player.prepare()
+            player.start()
+        } catch (_: Exception) {
+            file.delete()
+        }
     }
 
     /**

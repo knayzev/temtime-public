@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.focustimer.app.PrefsManager
@@ -96,6 +97,9 @@ private fun GeneralSettingsTab(onLogout: () -> Unit) {
     var voiceAnnounceValue by remember { mutableStateOf(prefs.voiceAnnounceLeadValue.toString()) }
     var voiceAnnounceUnit by remember { mutableStateOf(prefs.voiceAnnounceUnit) }
     var voiceLanguage by remember { mutableStateOf(prefs.voiceLanguage) }
+
+    var elevenLabsEnabled by remember { mutableStateOf(prefs.elevenLabsEnabled) }
+    var elevenLabsApiKey by remember { mutableStateOf(prefs.elevenLabsApiKey) }
 
     var importMessage by remember { mutableStateOf<String?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
@@ -272,6 +276,32 @@ private fun GeneralSettingsTab(onLogout: () -> Unit) {
                     prefs.voiceLanguage = it
                 }
             )
+
+            SettingRow("Реалистичный голос (ElevenLabs)", elevenLabsEnabled) {
+                elevenLabsEnabled = it
+                prefs.elevenLabsEnabled = it
+            }
+            Text(
+                "Нужен интернет и свой API-ключ с elevenlabs.io. Без ключа или без сети озвучка " +
+                    "автоматически вернётся к обычному голосу устройства.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            if (elevenLabsEnabled) {
+                OutlinedTextField(
+                    value = elevenLabsApiKey,
+                    onValueChange = {
+                        elevenLabsApiKey = it
+                        prefs.elevenLabsApiKey = it
+                    },
+                    label = { Text("API-ключ ElevenLabs") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                )
+            }
         }
 
         Divider(modifier = Modifier.padding(vertical = 16.dp))

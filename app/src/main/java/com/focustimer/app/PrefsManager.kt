@@ -93,6 +93,22 @@ class PrefsManager(context: Context) {
         get() = prefs.getString(KEY_VOICE_LANGUAGE, "Русский") ?: "Русский"
         set(value) = prefs.edit().putString(KEY_VOICE_LANGUAGE, value).apply()
 
+    var elevenLabsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_ELEVEN_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_ELEVEN_ENABLED, value).apply()
+
+    var elevenLabsApiKey: String
+        get() = prefs.getString(KEY_ELEVEN_API_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_ELEVEN_API_KEY, value).apply()
+
+    var elevenLabsVoiceIdMale: String
+        get() = prefs.getString(KEY_ELEVEN_VOICE_MALE, DEFAULT_ELEVEN_VOICE_MALE) ?: DEFAULT_ELEVEN_VOICE_MALE
+        set(value) = prefs.edit().putString(KEY_ELEVEN_VOICE_MALE, value).apply()
+
+    var elevenLabsVoiceIdFemale: String
+        get() = prefs.getString(KEY_ELEVEN_VOICE_FEMALE, DEFAULT_ELEVEN_VOICE_FEMALE) ?: DEFAULT_ELEVEN_VOICE_FEMALE
+        set(value) = prefs.edit().putString(KEY_ELEVEN_VOICE_FEMALE, value).apply()
+
     var photoUri: String?
         get() = prefs.getString(KEY_PHOTO, null)
         set(value) = prefs.edit().putString(KEY_PHOTO, value).apply()
@@ -493,6 +509,12 @@ class PrefsManager(context: Context) {
         private const val KEY_VOICE_ANNOUNCE_VALUE = "voice_announce_value"
         private const val KEY_VOICE_ANNOUNCE_UNIT = "voice_announce_unit"
         private const val KEY_VOICE_LANGUAGE = "voice_language"
+        private const val KEY_ELEVEN_ENABLED = "eleven_labs_enabled"
+        private const val KEY_ELEVEN_API_KEY = "eleven_labs_api_key"
+        private const val KEY_ELEVEN_VOICE_MALE = "eleven_labs_voice_male"
+        private const val KEY_ELEVEN_VOICE_FEMALE = "eleven_labs_voice_female"
+        private const val DEFAULT_ELEVEN_VOICE_MALE = "pNInz6obpgDQGcFmaJgB"
+        private const val DEFAULT_ELEVEN_VOICE_FEMALE = "21m00Tcm4TlvDq8ikWAM"
         private const val KEY_HISTORY = "session_history"
         private const val KEY_CATEGORIES = "categories"
         private const val KEY_PASSWORD_HASH = "account_password_hash"
