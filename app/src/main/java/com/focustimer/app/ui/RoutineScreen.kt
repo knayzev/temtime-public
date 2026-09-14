@@ -385,6 +385,7 @@ private fun WeekStrip(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RoutineRow(
     task: RoutineTask,
