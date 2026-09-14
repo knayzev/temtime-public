@@ -33,6 +33,30 @@ data class DayPlan(
     val isEmpty: Boolean get() = tasks.isBlank() && priority.isBlank() && dontForget.isBlank()
 }
 
+data class RoutineTask(
+    val id: String,
+    val title: String,
+    val icon: String = "✅",
+    val durationMinutes: Int = 0
+)
+
+val ROUTINE_TASK_LIBRARY = listOf(
+    RoutineTask("routine_wake7", "Проснуться в 7 утра", "⏰", 0),
+    RoutineTask("routine_lie5", "Полежать 5 минут", "🛌", 5),
+    RoutineTask("routine_sit5", "Посидеть 5 минут", "🧘", 5),
+    RoutineTask("routine_exercise", "Сделать зарядку", "🤸", 10),
+    RoutineTask("routine_teeth", "Почистить зубы", "🪥", 3),
+    RoutineTask("routine_water", "Выпить стакан воды", "💧", 1),
+    RoutineTask("routine_walk", "Прогуляться", "🚶", 15),
+    RoutineTask("routine_stretch", "Растяжка", "🤾", 10),
+    RoutineTask("routine_shower", "Принять душ", "🚿", 10),
+    RoutineTask("routine_breakfast", "Позавтракать", "🍳", 15),
+    RoutineTask("routine_journal", "Записать мысли в дневник", "📓", 5),
+    RoutineTask("routine_plan", "Составить план на день", "📝", 5)
+)
+
+val DEFAULT_ROUTINE_TASKS = ROUTINE_TASK_LIBRARY.take(5)
+
 val DEFAULT_CATEGORIES = listOf("Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое")
 
 val DEFAULT_PRESETS = listOf(
@@ -261,6 +285,99 @@ class PrefsManager(context: Context) {
             }
             prefs.edit().putString(KEY_DAY_PLAN, obj.toString()).apply()
         }
+
+    var routineTasks: List<RoutineTask>
+        get() {
+            val raw = prefs.getString(KEY_ROUTINE_TASKS, null) ?: return DEFAULT_ROUTINE_TASKS
+            return try {
+                val array = JSONArray(raw)
+                (0 until array.length()).map { i ->
+                    val obj = array.getJSONObject(i)
+                    RoutineTask(
+                        id = obj.getString("id"),
+                        title = obj.getString("title"),
+                        icon = obj.optString("icon", "✅"),
+                        durationMinutes = obj.optInt("durationMinutes", 0)
+                    )
+                }
+            } catch (_: Exception) {
+                DEFAULT_ROUTINE_TASKS
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { task ->
+                array.put(
+                    JSONObject().apply {
+                        put("id", task.id)
+                        put("title", task.title)
+                        put("icon", task.icon)
+                        put("durationMinutes", task.durationMinutes)
+                    }
+                )
+            }
+            prefs.edit().putString(KEY_ROUTINE_TASKS, array.toString()).apply()
+        }
+
+    private var routineCompletionsRaw: JSONObject
+        get() {
+            val raw = prefs.getString(KEY_ROUTINE_COMPLETIONS, null) ?: return JSONObject()
+            return try { JSONObject(raw) } catch (_: Exception) { JSONObject() }
+        }
+        set(value) = prefs.edit().putString(KEY_ROUTINE_COMPLETIONS, value.toString()).apply()
+
+    fun getCompletedRoutineIds(date: String): Set<String> {
+        val arr = routineCompletionsRaw.optJSONArray(date) ?: return emptySet()
+        return (0 until arr.length()).map { arr.getString(it) }.toSet()
+    }
+
+    fun setRoutineTaskDone(date: String, taskId: String, done: Boolean) {
+        val root = routineCompletionsRaw
+        val current = getCompletedRoutineIds(date).toMutableSet()
+        if (done) current.add(taskId) else current.remove(taskId)
+        root.put(date, JSONArray(current.toList()))
+        routineCompletionsRaw = root
+    }
+
+    /**
+     * Consecutive-day streak for a task, counted backward from today. If today isn't done yet
+     * the streak still reflects the run ending yesterday, so it doesn't drop to zero mid-day.
+     */
+    fun routineStreak(taskId: String, today: String, previousDates: List<String>): Int {
+        var streak = if (getCompletedRoutineIds(today).contains(taskId)) 1 else 0
+        for (date in previousDates) {
+            if (getCompletedRoutineIds(date).contains(taskId)) {
+                streak++
+            } else {
+                break
+            }
+        }
+        return streak
+    }
+
+    var daySummaries: Map<String, String>
+        get() {
+            val raw = prefs.getString(KEY_DAY_SUMMARIES, null) ?: return emptyMap()
+            return try {
+                val obj = JSONObject(raw)
+                obj.keys().asSequence().associateWith { obj.getString(it) }
+            } catch (_: Exception) {
+                emptyMap()
+            }
+        }
+        set(value) {
+            val obj = JSONObject()
+            value.forEach { (date, text) -> obj.put(date, text) }
+            prefs.edit().putString(KEY_DAY_SUMMARIES, obj.toString()).apply()
+        }
+
+    fun getDaySummary(date: String): String = daySummaries[date] ?: ""
+
+    fun setDaySummary(date: String, text: String) {
+        val updated = daySummaries.toMutableMap()
+        if (text.isBlank()) updated.remove(date) else updated[date] = text
+        daySummaries = updated
+    }
 
     var lifestyleAnswers: Map<String, List<String>>
         get() {
@@ -532,5 +649,8 @@ class PrefsManager(context: Context) {
         private const val KEY_DAY_SCHEDULE = "day_schedule"
         private const val KEY_DAY_PLAN = "day_plan"
         private const val KEY_LIFESTYLE_ANSWERS = "lifestyle_answers"
+        private const val KEY_ROUTINE_TASKS = "routine_tasks"
+        private const val KEY_ROUTINE_COMPLETIONS = "routine_completions"
+        private const val KEY_DAY_SUMMARIES = "day_summaries"
     }
 }

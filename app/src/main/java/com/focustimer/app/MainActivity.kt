@@ -61,6 +61,7 @@ import com.focustimer.app.ui.HistoryScreen
 import com.focustimer.app.ui.LifestyleQuestionsScreen
 import com.focustimer.app.ui.OnboardingScreen
 import com.focustimer.app.ui.ProfileScreen
+import com.focustimer.app.ui.RoutineScreen
 import com.focustimer.app.ui.SettingsScreen
 import com.focustimer.app.ui.StatsScreen
 import com.focustimer.app.ui.TimerScreen
@@ -82,6 +83,8 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class RootScreen { AUTH, ONBOARDING, LIFESTYLE, MAIN }
+
+private enum class OverlayScreen { DAY_PLAN, ROUTINE }
 
 @Composable
 fun RootNavigator(timerViewModel: TimerViewModel) {
@@ -123,7 +126,7 @@ fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Таймер", "История", "Статистика", "Настройки", "Профиль")
 
-    var showDayPlan by remember { mutableStateOf(false) }
+    var overlayScreen by remember { mutableStateOf<OverlayScreen?>(null) }
     var showAddMenu by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -176,7 +179,14 @@ fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
                             text = { Text("Создать план на день") },
                             onClick = {
                                 showAddMenu = false
-                                showDayPlan = true
+                                overlayScreen = OverlayScreen.DAY_PLAN
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Утренняя рутина") },
+                            onClick = {
+                                showAddMenu = false
+                                overlayScreen = OverlayScreen.ROUTINE
                             }
                         )
                     }
@@ -187,31 +197,31 @@ fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
             NavigationBar {
                 NavigationBarItem(
                     selected = selectedTab == 0,
-                    onClick = { selectedTab = 0; showDayPlan = false },
+                    onClick = { selectedTab = 0; overlayScreen = null },
                     icon = { Icon(Icons.Default.PlayArrow, contentDescription = tabs[0]) },
                     label = { Text(tabs[0]) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
-                    onClick = { selectedTab = 1; showDayPlan = false },
+                    onClick = { selectedTab = 1; overlayScreen = null },
                     icon = { Icon(Icons.Default.History, contentDescription = tabs[1]) },
                     label = { Text(tabs[1]) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 2,
-                    onClick = { selectedTab = 2; showDayPlan = false },
+                    onClick = { selectedTab = 2; overlayScreen = null },
                     icon = { Icon(Icons.Default.BarChart, contentDescription = tabs[2]) },
                     label = { Text(tabs[2]) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 3,
-                    onClick = { selectedTab = 3; showDayPlan = false },
+                    onClick = { selectedTab = 3; overlayScreen = null },
                     icon = { Icon(Icons.Default.Settings, contentDescription = tabs[3]) },
                     label = { Text(tabs[3]) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 4,
-                    onClick = { selectedTab = 4; showDayPlan = false },
+                    onClick = { selectedTab = 4; overlayScreen = null },
                     icon = { Icon(Icons.Default.Person, contentDescription = tabs[4]) },
                     label = { Text(tabs[4]) }
                 )
@@ -224,13 +234,13 @@ fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
             if (showMiniTimer) {
                 MiniTimerBar(
                     timerState = timerState,
-                    onClick = { selectedTab = 0; showDayPlan = false }
+                    onClick = { selectedTab = 0; overlayScreen = null }
                 )
             }
-            if (showDayPlan) {
-                DayPlanScreen(onBack = { showDayPlan = false })
-            } else {
-                when (selectedTab) {
+            when (overlayScreen) {
+                OverlayScreen.DAY_PLAN -> DayPlanScreen(onBack = { overlayScreen = null })
+                OverlayScreen.ROUTINE -> RoutineScreen(onBack = { overlayScreen = null })
+                null -> when (selectedTab) {
                     0 -> TimerScreen(timerViewModel)
                     1 -> HistoryScreen()
                     2 -> StatsScreen()
