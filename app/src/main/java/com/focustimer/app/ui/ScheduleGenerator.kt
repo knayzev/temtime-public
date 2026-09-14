@@ -105,6 +105,37 @@ private val TIP_LOOKUP: Map<String, Pair<String, String>> = mapOf(
     "Чтение книги перед сном" to ("evening" to "Чтение — отличная альтернатива экрану")
 )
 
+// These are now represented by their own dedicated "turn off notifications" step instead of a
+// generic tip line, so they're filtered out of the regular evening tips list.
+private val PHONE_TIP_TEXTS = setOf(
+    "Уберите телефон за час до сна",
+    "Продолжайте убирать телефон заранее"
+)
+
+/**
+ * Each variant changes more than a uniform time shift — the gaps between blocks (morning routine
+ * length, work-block start delays, lunch/evening buffer) differ too, so consecutive variants are
+ * actually distinguishable instead of collapsing into a barely-noticeable ±30 minute shift.
+ */
+private data class ScheduleProfile(
+    val wakeShift: Int,
+    val bedShift: Int,
+    val breakfastShift: Int,
+    val lunchShift: Int,
+    val dinnerShift: Int,
+    val morningRoutineOffset: Int,
+    val postBreakfastGap: Int,
+    val postLunchGap: Int,
+    val postDinnerGap: Int
+)
+
+private val SCHEDULE_PROFILES = listOf(
+    ScheduleProfile(0, 0, 0, 0, 0, 20, 30, 60, 120),
+    ScheduleProfile(-20, -20, -10, -15, -20, 15, 20, 45, 90),
+    ScheduleProfile(20, 20, 15, 15, 15, 30, 40, 75, 150),
+    ScheduleProfile(0, 0, 10, -10, 5, 25, 35, 90, 105)
+)
+
 private fun timeToMinutes(text: String): Int {
     val parts = text.split(":")
     val h = parts.getOrNull(0)?.toIntOrNull() ?: 8
@@ -126,33 +157,39 @@ fun generateSchedule(
     dinnerTime: String,
     variant: Int
 ): List<ScheduleItem> {
-    val shift = when (variant % 3) {
-        1 -> -30
-        2 -> 30
-        else -> 0
-    }
+    val profile = SCHEDULE_PROFILES[((variant % SCHEDULE_PROFILES.size) + SCHEDULE_PROFILES.size) % SCHEDULE_PROFILES.size]
 
     val allSelected = answers.values.flatten()
     val morningTips = allSelected.mapNotNull { TIP_LOOKUP[it] }
         .filter { it.first == "morning" }.map { it.second }.distinct()
     val eveningTips = allSelected.mapNotNull { TIP_LOOKUP[it] }
         .filter { it.first == "evening" }.map { it.second }.distinct()
+        .filterNot { it in PHONE_TIP_TEXTS }
 
-    val wake = timeToMinutes(wakeTime) + shift
-    val bed = timeToMinutes(bedTime) + shift
-    val breakfast = timeToMinutes(breakfastTime) + shift
-    val lunch = timeToMinutes(lunchTime) + shift
-    val dinner = timeToMinutes(dinnerTime) + shift
+    val wake = timeToMinutes(wakeTime) + profile.wakeShift
+    val bed = timeToMinutes(bedTime) + profile.bedShift
+    val breakfast = timeToMinutes(breakfastTime) + profile.breakfastShift
+    val lunch = timeToMinutes(lunchTime) + profile.lunchShift
+    val dinner = timeToMinutes(dinnerTime) + profile.dinnerShift
 
     return listOf(
         ScheduleItem(minutesToTime(wake), "Подъём", morningTips.take(2)),
-        ScheduleItem(minutesToTime(wake + 20), "Утренняя рутина"),
+        ScheduleItem(minutesToTime(wake + profile.morningRoutineOffset), "Утренняя рутина"),
         ScheduleItem(minutesToTime(breakfast), "Завтрак"),
-        ScheduleItem(minutesToTime(breakfast + 30), "Работа", listOf("Блоками по 45–50 минут с перерывами 10–15 минут")),
+        ScheduleItem(
+            minutesToTime(breakfast + profile.postBreakfastGap),
+            "Работа",
+            listOf("Блоками по 45–50 минут с перерывами 10–15 минут")
+        ),
         ScheduleItem(minutesToTime(lunch), "Обед"),
-        ScheduleItem(minutesToTime(lunch + 60), "Работа"),
+        ScheduleItem(minutesToTime(lunch + profile.postLunchGap), "Работа"),
         ScheduleItem(minutesToTime(dinner), "Ужин"),
-        ScheduleItem(minutesToTime(dinner + 120), "Вечер", eveningTips.take(2)),
+        ScheduleItem(minutesToTime(dinner + profile.postDinnerGap), "Вечер", eveningTips.take(2)),
+        ScheduleItem(
+            minutesToTime(bed - 60),
+            "Отключить уведомления на телефоне",
+            listOf("Включите «Не беспокоить» или авиарежим — так точно уснёте вовремя")
+        ),
         ScheduleItem(minutesToTime(bed), "Отбой", eveningTips.drop(2).take(1))
     )
 }

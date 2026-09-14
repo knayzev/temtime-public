@@ -58,6 +58,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.focustimer.app.ui.AuthScreen
 import com.focustimer.app.ui.DayPlanScreen
 import com.focustimer.app.ui.HistoryScreen
+import com.focustimer.app.ui.IntroScreen
 import com.focustimer.app.ui.LifestyleQuestionsScreen
 import com.focustimer.app.ui.OnboardingScreen
 import com.focustimer.app.ui.ProfileScreen
@@ -82,7 +83,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class RootScreen { AUTH, ONBOARDING, LIFESTYLE, MAIN }
+private enum class RootScreen { AUTH, INTRO, ONBOARDING, LIFESTYLE, MAIN }
 
 private enum class OverlayScreen { DAY_PLAN, ROUTINE }
 
@@ -95,7 +96,7 @@ fun RootNavigator(timerViewModel: TimerViewModel) {
         mutableStateOf(
             when {
                 !prefs.isRegistered || !prefs.isLoggedIn -> RootScreen.AUTH
-                !prefs.isOnboarded -> RootScreen.ONBOARDING
+                !prefs.isOnboarded -> RootScreen.INTRO
                 else -> RootScreen.MAIN
             }
         )
@@ -105,9 +106,10 @@ fun RootNavigator(timerViewModel: TimerViewModel) {
         RootScreen.AUTH -> AuthScreen(
             startInLoginMode = prefs.isRegistered,
             onAuthenticated = {
-                screen = if (prefs.isOnboarded) RootScreen.MAIN else RootScreen.ONBOARDING
+                screen = if (prefs.isOnboarded) RootScreen.MAIN else RootScreen.INTRO
             }
         )
+        RootScreen.INTRO -> IntroScreen(onContinue = { screen = RootScreen.ONBOARDING })
         RootScreen.ONBOARDING -> OnboardingScreen(onComplete = { screen = RootScreen.LIFESTYLE })
         RootScreen.LIFESTYLE -> LifestyleQuestionsScreen(onComplete = { screen = RootScreen.MAIN })
         RootScreen.MAIN -> AppRoot(

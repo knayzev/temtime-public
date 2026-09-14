@@ -18,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,14 +43,11 @@ fun DayPlanScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     var priority by remember { mutableStateOf(saved.priority) }
     var dontForget by remember { mutableStateOf(saved.dontForget) }
     var lastSavedAt by remember { mutableStateOf(saved.updatedAtMillis) }
-    var justSaved by remember { mutableStateOf(false) }
+    var lastSavedTasks by remember { mutableStateOf(saved.tasks) }
+    var lastSavedPriority by remember { mutableStateOf(saved.priority) }
+    var lastSavedDontForget by remember { mutableStateOf(saved.dontForget) }
 
-    LaunchedEffect(justSaved) {
-        if (justSaved) {
-            kotlinx.coroutines.delay(1500)
-            justSaved = false
-        }
-    }
+    val hasUnsavedChanges = tasks != lastSavedTasks || priority != lastSavedPriority || dontForget != lastSavedDontForget
 
     Column(
         modifier = modifier
@@ -116,28 +112,33 @@ fun DayPlanScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 20.dp),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (justSaved) {
+            if (!hasUnsavedChanges && lastSavedAt > 0L) {
                 Text(
-                    "Сохранено",
+                    "✓ Сохранено",
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .padding(end = 16.dp)
-                        .align(Alignment.CenterVertically)
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 16.dp)
                 )
             }
-            Button(onClick = {
-                val now = System.currentTimeMillis()
-                prefs.dayPlan = DayPlan(
-                    tasks = tasks,
-                    priority = priority,
-                    dontForget = dontForget,
-                    updatedAtMillis = now
-                )
-                lastSavedAt = now
-                justSaved = true
-            }) {
+            Button(
+                onClick = {
+                    val now = System.currentTimeMillis()
+                    prefs.dayPlan = DayPlan(
+                        tasks = tasks,
+                        priority = priority,
+                        dontForget = dontForget,
+                        updatedAtMillis = now
+                    )
+                    lastSavedAt = now
+                    lastSavedTasks = tasks
+                    lastSavedPriority = priority
+                    lastSavedDontForget = dontForget
+                },
+                enabled = hasUnsavedChanges
+            ) {
                 Text("Сохранить план")
             }
         }
