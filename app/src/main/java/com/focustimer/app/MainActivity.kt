@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class RootScreen { AUTH, INTRO, ONBOARDING, LIFESTYLE, MAIN }
+private enum class RootScreen { AUTH, INTRO, ONBOARDING, LIFESTYLE, PLAN_SETUP, MAIN }
 
 private enum class OverlayScreen { DAY_PLAN, ROUTINE }
 
@@ -111,7 +111,12 @@ fun RootNavigator(timerViewModel: TimerViewModel) {
         )
         RootScreen.INTRO -> IntroScreen(onContinue = { screen = RootScreen.ONBOARDING })
         RootScreen.ONBOARDING -> OnboardingScreen(onComplete = { screen = RootScreen.LIFESTYLE })
-        RootScreen.LIFESTYLE -> LifestyleQuestionsScreen(onComplete = { screen = RootScreen.MAIN })
+        RootScreen.LIFESTYLE -> LifestyleQuestionsScreen(onComplete = { screen = RootScreen.PLAN_SETUP })
+        RootScreen.PLAN_SETUP -> DayPlanScreen(
+            onBack = {},
+            isSetupFlow = true,
+            onSetupComplete = { screen = RootScreen.MAIN }
+        )
         RootScreen.MAIN -> AppRoot(
             timerViewModel = timerViewModel,
             onLogout = {

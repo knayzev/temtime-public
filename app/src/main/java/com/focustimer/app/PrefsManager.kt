@@ -57,6 +57,33 @@ val ROUTINE_TASK_LIBRARY = listOf(
 
 val DEFAULT_ROUTINE_TASKS = ROUTINE_TASK_LIBRARY.take(5)
 
+data class PlanTask(
+    val id: String,
+    val title: String,
+    val durationMinutes: Int
+)
+
+data class PlanTemplate(
+    val id: String,
+    val name: String,
+    val tasks: List<PlanTask>
+)
+
+val PLAN_TASK_LIBRARY = listOf(
+    PlanTask("plantask_wake", "Проснуться", 1),
+    PlanTask("plantask_water", "Стакан воды", 1),
+    PlanTask("plantask_stretch", "Растяжка", 10),
+    PlanTask("plantask_exercise", "Зарядка", 15),
+    PlanTask("plantask_shower", "Душ", 10),
+    PlanTask("plantask_breakfast", "Завтрак", 20),
+    PlanTask("plantask_plan", "Планирование дня", 5),
+    PlanTask("plantask_meditate", "Медитация", 10),
+    PlanTask("plantask_walk", "Прогулка", 15),
+    PlanTask("plantask_read", "Чтение", 15),
+    PlanTask("plantask_teeth", "Почистить зубы", 3),
+    PlanTask("plantask_work", "Рабочий блок", 45)
+)
+
 val DEFAULT_CATEGORIES = listOf("Работа", "Учёба", "Соцсети", "Прокрастинация", "Другое")
 
 val DEFAULT_PRESETS = listOf(
@@ -200,6 +227,14 @@ class PrefsManager(context: Context) {
     var gender: String
         get() = prefs.getString(KEY_GENDER, "") ?: ""
         set(value) = prefs.edit().putString(KEY_GENDER, value).apply()
+
+    var personalityType: String
+        get() = prefs.getString(KEY_PERSONALITY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_PERSONALITY, value).apply()
+
+    var nightWakeFrequency: String
+        get() = prefs.getString(KEY_NIGHT_WAKE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_NIGHT_WAKE, value).apply()
 
     var wakeTime: String
         get() = prefs.getString(KEY_WAKE_TIME, "07:00") ?: "07:00"
@@ -378,6 +413,56 @@ class PrefsManager(context: Context) {
         if (text.isBlank()) updated.remove(date) else updated[date] = text
         daySummaries = updated
     }
+
+    var planTemplates: List<PlanTemplate>
+        get() {
+            val raw = prefs.getString(KEY_PLAN_TEMPLATES, null) ?: return emptyList()
+            return try {
+                val array = JSONArray(raw)
+                (0 until array.length()).map { i ->
+                    val obj = array.getJSONObject(i)
+                    val tasksArr = obj.getJSONArray("tasks")
+                    val tasks = (0 until tasksArr.length()).map { j ->
+                        val t = tasksArr.getJSONObject(j)
+                        PlanTask(
+                            id = t.getString("id"),
+                            title = t.getString("title"),
+                            durationMinutes = t.getInt("durationMinutes")
+                        )
+                    }
+                    PlanTemplate(id = obj.getString("id"), name = obj.getString("name"), tasks = tasks)
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) {
+            val array = JSONArray()
+            value.forEach { template ->
+                val tasksArr = JSONArray()
+                template.tasks.forEach { task ->
+                    tasksArr.put(
+                        JSONObject().apply {
+                            put("id", task.id)
+                            put("title", task.title)
+                            put("durationMinutes", task.durationMinutes)
+                        }
+                    )
+                }
+                array.put(
+                    JSONObject().apply {
+                        put("id", template.id)
+                        put("name", template.name)
+                        put("tasks", tasksArr)
+                    }
+                )
+            }
+            prefs.edit().putString(KEY_PLAN_TEMPLATES, array.toString()).apply()
+        }
+
+    var activePlanTemplateId: String?
+        get() = prefs.getString(KEY_ACTIVE_PLAN_TEMPLATE, null)
+        set(value) = prefs.edit().putString(KEY_ACTIVE_PLAN_TEMPLATE, value).apply()
 
     var lifestyleAnswers: Map<String, List<String>>
         get() {
@@ -614,6 +699,8 @@ class PrefsManager(context: Context) {
         private const val KEY_AGE = "age"
         private const val KEY_MARITAL = "marital_status"
         private const val KEY_GENDER = "gender"
+        private const val KEY_PERSONALITY = "personality_type"
+        private const val KEY_NIGHT_WAKE = "night_wake_frequency"
         private const val KEY_WAKE_TIME = "wake_time"
         private const val KEY_BED_TIME = "bed_time"
         private const val KEY_IS_WORKING = "is_working"
@@ -652,5 +739,7 @@ class PrefsManager(context: Context) {
         private const val KEY_ROUTINE_TASKS = "routine_tasks"
         private const val KEY_ROUTINE_COMPLETIONS = "routine_completions"
         private const val KEY_DAY_SUMMARIES = "day_summaries"
+        private const val KEY_PLAN_TEMPLATES = "plan_templates"
+        private const val KEY_ACTIVE_PLAN_TEMPLATE = "active_plan_template_id"
     }
 }

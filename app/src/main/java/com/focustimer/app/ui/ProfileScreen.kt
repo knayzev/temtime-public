@@ -360,7 +360,9 @@ private fun ScheduleTab() {
 private fun RecommendationsTab() {
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
-    val advice = remember { buildAdvice(prefs.weightKg, prefs.heightCm, prefs.age, prefs.gender) }
+    val advice = remember {
+        buildAdvice(prefs.weightKg, prefs.heightCm, prefs.age, prefs.gender, prefs.personalityType)
+    }
 
     Column(
         modifier = Modifier

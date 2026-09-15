@@ -1,5 +1,6 @@
 package com.focustimer.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,15 +8,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,22 +32,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.focustimer.app.PrefsManager
 
+private val MARITAL_OPTIONS_ONBOARDING = listOf(
+    "Не женат / не замужем",
+    "В отношениях",
+    "Женат / замужем",
+    "Разведён(а)",
+    "Вдовец / вдова"
+)
+
+private val GENDER_OPTIONS_ONBOARDING = listOf("Мужской", "Женский")
+
+private val PERSONALITY_OPTIONS = listOf("Интроверт", "Экстраверт", "Амбиверт")
+
+private val NIGHT_WAKE_OPTIONS = listOf("Не просыпаюсь", "1 раз", "2–3 раза", "Часто (4+)")
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PrefsManager(context) }
 
+    var weightKg by remember { mutableStateOf(prefs.weightKg) }
+    var heightCm by remember { mutableStateOf(prefs.heightCm) }
+    var age by remember { mutableStateOf(prefs.age) }
+    var gender by remember { mutableStateOf(prefs.gender.ifBlank { GENDER_OPTIONS_ONBOARDING[0] }) }
+    var maritalStatus by remember { mutableStateOf(prefs.maritalStatus.ifBlank { MARITAL_OPTIONS_ONBOARDING[0] }) }
+    var personalityType by remember { mutableStateOf(prefs.personalityType.ifBlank { PERSONALITY_OPTIONS[2] }) }
+    var nightWakeFrequency by remember { mutableStateOf(prefs.nightWakeFrequency.ifBlank { NIGHT_WAKE_OPTIONS[0] }) }
+
     var bedTime by remember { mutableStateOf(prefs.bedTime) }
+    var wakeTime by remember { mutableStateOf(prefs.wakeTime) }
     var breakfastTime by remember { mutableStateOf(prefs.breakfastTime) }
     var lunchTime by remember { mutableStateOf(prefs.lunchTime) }
     var dinnerTime by remember { mutableStateOf(prefs.dinnerTime) }
-    var workHours by remember { mutableStateOf(prefs.workHoursPerDay) }
     var mealsPerDay by remember { mutableStateOf(prefs.mealsPerDay) }
     var waterUnit by remember { mutableStateOf(prefs.waterUnit) }
     var waterCount by remember { mutableStateOf(prefs.waterCount) }
+    var workHours by remember { mutableStateOf(prefs.workHoursPerDay) }
 
     Column(
         modifier = modifier
@@ -50,21 +81,102 @@ fun OnboardingScreen(onComplete: () -> Unit, modifier: Modifier = Modifier) {
             .padding(24.dp)
     ) {
         Text(
-            "Расскажите о своём дне",
+            "Расскажите о себе и своём дне",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
         Text(
-            "Это поможет давать более точные советы",
+            "Это поможет предложить точный график дня и советы",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
         )
 
+        SectionTitle("О себе")
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = weightKg,
+                onValueChange = { weightKg = it; prefs.weightKg = it },
+                label = { Text("Вес, кг") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = heightCm,
+                onValueChange = { heightCm = it; prefs.heightCm = it },
+                label = { Text("Рост, см") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            )
+            OutlinedTextField(
+                value = age,
+                onValueChange = { age = it; prefs.age = it },
+                label = { Text("Возраст") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            )
+        }
+        DropdownField(
+            label = "Пол",
+            selected = gender,
+            options = GENDER_OPTIONS_ONBOARDING,
+            onSelected = { gender = it; prefs.gender = it },
+            modifier = Modifier.padding(top = 12.dp)
+        )
+        DropdownField(
+            label = "Семейное положение",
+            selected = maritalStatus,
+            options = MARITAL_OPTIONS_ONBOARDING,
+            onSelected = { maritalStatus = it; prefs.maritalStatus = it },
+            modifier = Modifier.padding(top = 12.dp)
+        )
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+        SectionTitle("Психологический портрет")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PERSONALITY_OPTIONS.forEach { option ->
+                ChoiceChip(
+                    label = option,
+                    selected = personalityType == option,
+                    onClick = { personalityType = option; prefs.personalityType = option },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+        SectionTitle("Сон")
+        DropdownField(
+            label = "Как часто просыпаетесь ночью",
+            selected = nightWakeFrequency,
+            options = NIGHT_WAKE_OPTIONS,
+            onSelected = { nightWakeFrequency = it; prefs.nightWakeFrequency = it },
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+        )
         TimePickerRow(
-            label = "Во сколько ложитесь спать",
+            label = "Во сколько отбой",
             timeText = bedTime,
             onTimeChange = { bedTime = it; prefs.bedTime = it }
         )
+        TimePickerRow(
+            label = "Во сколько подъём",
+            timeText = wakeTime,
+            onTimeChange = { wakeTime = it; prefs.wakeTime = it }
+        )
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+        SectionTitle("Питание")
         TimePickerRow(
             label = "Во сколько завтракаете",
             timeText = breakfastTime,
@@ -80,35 +192,34 @@ fun OnboardingScreen(onComplete: () -> Unit, modifier: Modifier = Modifier) {
             timeText = dinnerTime,
             onTimeChange = { dinnerTime = it; prefs.dinnerTime = it }
         )
-
-        Divider(modifier = Modifier.padding(vertical = 16.dp))
-
-        StepperRow(
-            label = "Часов работы в день",
-            value = workHours,
-            range = 1..16,
-            onValueChange = { workHours = it; prefs.workHoursPerDay = it }
-        )
         StepperRow(
             label = "Приёмов пищи в день",
             value = mealsPerDay,
             range = 1..6,
             onValueChange = { mealsPerDay = it; prefs.mealsPerDay = it }
         )
-
-        Divider(modifier = Modifier.padding(vertical = 16.dp))
-
         DropdownField(
             label = "Считать воду в",
             selected = waterUnit,
             options = listOf("Бутылки", "Чай/кофе"),
-            onSelected = { waterUnit = it; prefs.waterUnit = it }
+            onSelected = { waterUnit = it; prefs.waterUnit = it },
+            modifier = Modifier.padding(top = 8.dp)
         )
         StepperRow(
             label = if (waterUnit == "Бутылки") "Бутылок воды в день" else "Чашек чая/кофе в день",
             value = waterCount,
             range = 0..15,
             onValueChange = { waterCount = it; prefs.waterCount = it }
+        )
+
+        Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+        SectionTitle("Работа")
+        StepperRow(
+            label = "Часов работы в день",
+            value = workHours,
+            range = 1..16,
+            onValueChange = { workHours = it; prefs.workHoursPerDay = it }
         )
 
         Button(
@@ -118,6 +229,36 @@ fun OnboardingScreen(onComplete: () -> Unit, modifier: Modifier = Modifier) {
                 .padding(top = 32.dp)
         ) {
             Text("Далее")
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+}
+
+@Composable
+private fun ChoiceChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(vertical = 12.dp)
+        ) {
+            Text(
+                label,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+            )
         }
     }
 }

@@ -8,7 +8,13 @@ package com.focustimer.app.ui
  * meaningfully across users instead of collapsing into the same 3-4 generic messages.
  * Not medical advice — just sensible defaults to nudge the user toward a healthier routine.
  */
-fun buildAdvice(weightKgText: String, heightCmText: String, ageText: String, gender: String): List<String> {
+fun buildAdvice(
+    weightKgText: String,
+    heightCmText: String,
+    ageText: String,
+    gender: String,
+    personalityType: String = ""
+): List<String> {
     val advice = mutableListOf<String>()
     val age = ageText.toIntOrNull()
     val weight = weightKgText.toDoubleOrNull()
@@ -38,8 +44,22 @@ fun buildAdvice(weightKgText: String, heightCmText: String, ageText: String, gen
 
     advice += genderAdvice(isFemale, isMale, age)
     advice += focusRoutineAdvice(age)
+    personalityAdvice(personalityType)?.let { advice += it }
 
     return advice
+}
+
+private fun personalityAdvice(personalityType: String): String? = when (personalityType) {
+    "Интроверт" ->
+        "Как интроверту, вам может требоваться больше времени в одиночестве для восстановления энергии — " +
+            "закладывайте в график паузы без общения между рабочими блоками."
+    "Экстраверт" ->
+        "Как экстраверту, вам может помогать смена обстановки и общение — короткая пауза с разговором " +
+            "восстанавливает концентрацию лучше, чем тихий отдых в одиночестве."
+    "Амбиверт" ->
+        "Как амбиверту, вам стоит ориентироваться на своё текущее состояние — иногда лучше отдохнуть " +
+            "в тишине, иногда — переключиться на общение."
+    else -> null
 }
 
 private fun sleepAdviceFor(age: Int?): String = when {
