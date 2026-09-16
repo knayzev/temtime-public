@@ -69,6 +69,15 @@ data class PlanTemplate(
     val tasks: List<PlanTask>
 )
 
+data class PlanHistoryEntry(
+    val id: Long,
+    val templateName: String,
+    val completedAtMillis: Long,
+    val taskCount: Int,
+    val totalMinutes: Int,
+    val note: String = ""
+)
+
 val PLAN_TASK_LIBRARY = listOf(
     PlanTask("plantask_wake", "Проснуться", 1),
     PlanTask("plantask_water", "Стакан воды", 1),
@@ -464,6 +473,57 @@ class PrefsManager(context: Context) {
         get() = prefs.getString(KEY_ACTIVE_PLAN_TEMPLATE, null)
         set(value) = prefs.edit().putString(KEY_ACTIVE_PLAN_TEMPLATE, value).apply()
 
+    fun getPlanHistory(): List<PlanHistoryEntry> {
+        val raw = prefs.getString(KEY_PLAN_HISTORY, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(raw)
+            (0 until array.length()).map { i ->
+                val obj = array.getJSONObject(i)
+                PlanHistoryEntry(
+                    id = obj.getLong("id"),
+                    templateName = obj.getString("templateName"),
+                    completedAtMillis = obj.getLong("completedAtMillis"),
+                    taskCount = obj.getInt("taskCount"),
+                    totalMinutes = obj.getInt("totalMinutes"),
+                    note = obj.optString("note", "")
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    fun addPlanHistoryEntry(entry: PlanHistoryEntry) {
+        val updated = listOf(entry) + getPlanHistory()
+        savePlanHistory(updated.take(MAX_HISTORY_ENTRIES))
+    }
+
+    fun updatePlanHistoryNote(id: Long, note: String) {
+        val updated = getPlanHistory().map { if (it.id == id) it.copy(note = note) else it }
+        savePlanHistory(updated)
+    }
+
+    fun deletePlanHistoryEntry(id: Long) {
+        savePlanHistory(getPlanHistory().filter { it.id != id })
+    }
+
+    private fun savePlanHistory(entries: List<PlanHistoryEntry>) {
+        val array = JSONArray()
+        entries.forEach { entry ->
+            array.put(
+                JSONObject().apply {
+                    put("id", entry.id)
+                    put("templateName", entry.templateName)
+                    put("completedAtMillis", entry.completedAtMillis)
+                    put("taskCount", entry.taskCount)
+                    put("totalMinutes", entry.totalMinutes)
+                    put("note", entry.note)
+                }
+            )
+        }
+        prefs.edit().putString(KEY_PLAN_HISTORY, array.toString()).apply()
+    }
+
     var lifestyleAnswers: Map<String, List<String>>
         get() {
             val raw = prefs.getString(KEY_LIFESTYLE_ANSWERS, null) ?: return emptyMap()
@@ -741,5 +801,6 @@ class PrefsManager(context: Context) {
         private const val KEY_DAY_SUMMARIES = "day_summaries"
         private const val KEY_PLAN_TEMPLATES = "plan_templates"
         private const val KEY_ACTIVE_PLAN_TEMPLATE = "active_plan_template_id"
+        private const val KEY_PLAN_HISTORY = "plan_history"
     }
 }

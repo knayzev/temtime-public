@@ -52,6 +52,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focustimer.app.PLAN_TASK_LIBRARY
+import com.focustimer.app.PlanHistoryEntry
 import com.focustimer.app.PlanTask
 import com.focustimer.app.PlanTemplate
 import com.focustimer.app.PrefsManager
@@ -63,6 +64,7 @@ fun DayPlanScreen(
     onBack: () -> Unit,
     isSetupFlow: Boolean = false,
     onSetupComplete: (() -> Unit)? = null,
+    embedded: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -146,6 +148,17 @@ fun DayPlanScreen(
         } else {
             runningIndex = -1
             runCompleted = true
+            activeTemplate?.let { template ->
+                prefs.addPlanHistoryEntry(
+                    PlanHistoryEntry(
+                        id = System.currentTimeMillis(),
+                        templateName = template.name,
+                        completedAtMillis = System.currentTimeMillis(),
+                        taskCount = template.tasks.size,
+                        totalMinutes = template.tasks.sumOf { it.durationMinutes }
+                    )
+                )
+            }
         }
     }
 
@@ -174,20 +187,22 @@ fun DayPlanScreen(
             HeroGlyph(emoji = if (templates.isEmpty() || isBuilding) "🗓️" else "✨", size = 72.dp)
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = if (isSetupFlow) 16.dp else 0.dp)
-        ) {
-            if (!isSetupFlow) {
-                IconButton(onClick = onBack, modifier = Modifier.padding(end = 4.dp)) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+        if (!embedded) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = if (isSetupFlow) 16.dp else 0.dp)
+            ) {
+                if (!isSetupFlow) {
+                    IconButton(onClick = onBack, modifier = Modifier.padding(end = 4.dp)) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    }
                 }
+                Text(
+                    "План на день",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            Text(
-                "План на день",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
         }
         if (isSetupFlow) {
             Text(

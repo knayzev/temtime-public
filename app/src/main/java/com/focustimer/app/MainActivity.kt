@@ -85,7 +85,7 @@ class MainActivity : ComponentActivity() {
 
 private enum class RootScreen { AUTH, INTRO, ONBOARDING, LIFESTYLE, PLAN_SETUP, MAIN }
 
-private enum class OverlayScreen { DAY_PLAN, ROUTINE }
+private enum class OverlayScreen { ROUTINE }
 
 @Composable
 fun RootNavigator(timerViewModel: TimerViewModel) {
@@ -131,7 +131,7 @@ fun RootNavigator(timerViewModel: TimerViewModel) {
 @Composable
 fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Таймер", "История", "Статистика", "Настройки", "Профиль")
+    val tabs = listOf("Таймер", "Планы", "Статистика", "Настройки", "Профиль")
 
     var overlayScreen by remember { mutableStateOf<OverlayScreen?>(null) }
     var showAddMenu by remember { mutableStateOf(false) }
@@ -182,13 +182,6 @@ fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
                         Icon(Icons.Default.Add, contentDescription = "Добавить")
                     }
                     DropdownMenu(expanded = showAddMenu, onDismissRequest = { showAddMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Создать план на день") },
-                            onClick = {
-                                showAddMenu = false
-                                overlayScreen = OverlayScreen.DAY_PLAN
-                            }
-                        )
                         DropdownMenuItem(
                             text = { Text("Утренняя рутина") },
                             onClick = {
@@ -245,7 +238,6 @@ fun AppRoot(timerViewModel: TimerViewModel, onLogout: () -> Unit) {
                 )
             }
             when (overlayScreen) {
-                OverlayScreen.DAY_PLAN -> DayPlanScreen(onBack = { overlayScreen = null })
                 OverlayScreen.ROUTINE -> RoutineScreen(onBack = { overlayScreen = null })
                 null -> when (selectedTab) {
                     0 -> TimerScreen(timerViewModel)
