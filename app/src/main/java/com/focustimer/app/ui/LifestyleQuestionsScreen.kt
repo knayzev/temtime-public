@@ -71,6 +71,12 @@ fun LifestyleQuestionsScreen(onComplete: () -> Unit, modifier: Modifier = Modifi
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
+        StepperHeader(
+            currentStep = 1,
+            labels = listOf("О себе", "План на день", "Готово"),
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
+
         Text("Немного о вашем режиме", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(
             "Это поможет предложить подходящий график дня",

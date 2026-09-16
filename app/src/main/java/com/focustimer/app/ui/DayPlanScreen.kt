@@ -165,7 +165,19 @@ fun DayPlanScreen(
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (isSetupFlow) {
+            StepperHeader(
+                currentStep = if (templates.isEmpty() || isBuilding) 2 else 3,
+                labels = listOf("О себе", "План на день", "Готово"),
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+            HeroGlyph(emoji = if (templates.isEmpty() || isBuilding) "🗓️" else "✨", size = 72.dp)
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = if (isSetupFlow) 16.dp else 0.dp)
+        ) {
             if (!isSetupFlow) {
                 IconButton(onClick = onBack, modifier = Modifier.padding(end = 4.dp)) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
@@ -321,9 +333,12 @@ fun DayPlanScreen(
                     Button(
                         onClick = { startRun() },
                         enabled = activeTasks.isNotEmpty(),
-                        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
                     ) {
-                        Text("Начать выполнение")
+                        Text("Начать выполнение", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -332,11 +347,14 @@ fun DayPlanScreen(
         if (isSetupFlow) {
             Button(
                 onClick = { onSetupComplete?.invoke() },
+                enabled = templates.isNotEmpty() && !isBuilding,
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(52.dp)
                     .padding(top = 32.dp)
             ) {
-                Text("Готово, начать пользоваться")
+                Text("Готово, начать пользоваться", style = MaterialTheme.typography.titleMedium)
             }
         }
     }

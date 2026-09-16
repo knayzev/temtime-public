@@ -80,10 +80,19 @@ fun OnboardingScreen(onComplete: () -> Unit, modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
+        StepperHeader(
+            currentStep = 1,
+            labels = listOf("О себе", "План на день", "Готово"),
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
+
+        HeroGlyph(emoji = "🙋", size = 72.dp)
+
         Text(
             "Расскажите о себе и своём дне",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 16.dp)
         )
         Text(
             "Это поможет предложить точный график дня и советы",
